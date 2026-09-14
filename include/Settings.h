@@ -1,0 +1,57 @@
+#pragma once
+
+namespace SKSE::log
+{
+	using level = spdlog::level::level_enum;
+}
+namespace logger = SKSE::log;
+
+namespace settings
+{
+	void Init(const std::string& a_iniFileName);
+	void Reload();
+
+	// Default values
+
+	namespace debug
+	{
+		inline logger::level logLevel = logger::level::info;
+	}
+
+	namespace display
+	{
+		inline bool useMetricUnits = false;
+		inline bool showUndiscoveredLocationMarkers = true;
+		inline bool undiscoveredMeansUnknownMarkers = true;
+		inline bool undiscoveredMeansUnknownInfo = true;
+		inline bool showEnemyMarkers = true;
+		inline bool showEnemyNameUnderMarker = true;
+		inline bool showObjectiveAsTarget = true;
+		inline bool showOtherObjectivesCount = true;
+		inline bool showInteriorMarkers = true;
+		inline float angleToShowMarkerDetails = 10.0F;
+		inline float angleToKeepMarkerDetailsShown = 35.0F;
+		inline float focusingDelayToShow = 0.1F;
+	}
+
+	namespace questlist
+	{
+		inline float positionX = 0.008F;
+		inline float positionY = 0.125F;
+		inline float scale = 100.0F;
+		inline float maxHeight = 0.5F;
+		inline bool showInExteriors = true;
+		inline bool showInInteriors = true;
+		inline float walkingDelayToShow = 0.0F;
+		inline float joggingDelayToShow = 1.0F;
+		inline float sprintingDelayToShow = 1.5F;
+		inline bool hideInCombat = false;
+	}
+
+	namespace compass
+	{
+		inline float offsetX = 0.0F;
+		inline float offsetY = 0.0F;
+		inline float scale = 100.0F;
+	}
+}
