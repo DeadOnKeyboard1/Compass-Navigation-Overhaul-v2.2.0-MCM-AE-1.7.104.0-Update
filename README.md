@@ -54,6 +54,10 @@ powershell -ExecutionPolicy Bypass -File .\tools\Add-LicensesToPackage.ps1 -ZipP
 
 ## License
 
-The project source is licensed under the MIT License. Original copyright and permission notices are preserved in `LICENSE`. Third-party licenses and build dependency provenance are documented in `THIRD_PARTY_NOTICES.md` and `licenses/`.
+The original Compass Navigation Overhaul project source and this update's source changes are available under the MIT License. Original copyright and permission notices are preserved unchanged in `LICENSE`.
+
+The tested release DLL was statically linked with a newer CommonLibSSE-NG package. Binary distributions must therefore also comply with CommonLibSSE-NG's GNU GPL v3-or-later terms and its Modding/Linking Exceptions. The corresponding files are included as `licenses/CommonLibSSE-NG-GPL-3.0-or-later.txt` and `licenses/CommonLibSSE-NG-EXCEPTIONS.md`. MIT is GPL-compatible, so retaining the source's MIT grant does not remove the GPL obligations that apply to the combined binary.
+
+Third-party licenses and build dependency provenance are documented in `THIRD_PARTY_NOTICES.md` and `licenses/`.
 
 Game data, Bethesda assets, and externally distributed mod assets are not relicensed by this repository. Their original licenses and permissions continue to apply.
