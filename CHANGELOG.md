@@ -18,3 +18,9 @@
 - Added `fAngleToKeepMarkerDetailsShown` to the MCM because the DLL already supports it.
 - Added automatic English/German MCM localization through `Interface/Translations`.
 - Added an automated Windows build/package batch that produces a Vortex-ready DLL + MCM patch ZIP.
+
+### Repository licensing
+
+- Set the repository root `LICENSE` to GPL-3.0-or-later so GitHub detects the combined update under GPL.
+- Preserved the original Compass Navigation Overhaul MIT notice in `licenses/CompassNavigationOverhaul-Original-MIT.txt`.
+- Retained CommonLibSSE-NG GPL and Modding/Linking Exception texts under `licenses/`.

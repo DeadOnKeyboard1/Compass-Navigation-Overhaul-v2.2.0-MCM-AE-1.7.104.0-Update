@@ -101,10 +101,12 @@ powershell -ExecutionPolicy Bypass -File .\tools\Add-LicensesToPackage.ps1 -ZipP
 
 ## License
 
-The original Compass Navigation Overhaul project source and this update's source changes are available under the MIT License. Original copyright and permission notices are preserved unchanged in `LICENSE`.
+This repository and the combined Skyrim 1.7.104.0 update are distributed under the **GNU General Public License v3.0 or later (GPL-3.0-or-later)**. The complete GPL text is the root `LICENSE` file so GitHub can identify the repository license correctly.
 
-The source build is pinned to CommonLibSSE-NG 7.5.4, which contains the corrected Skyrim 1.7.x PlayerCharacter accessors. Binary distributions must therefore also comply with CommonLibSSE-NG's GNU GPL v3-or-later terms and its Modding/Linking Exceptions. The corresponding files are included as `licenses/CommonLibSSE-NG-GPL-3.0-or-later.txt` and `licenses/CommonLibSSE-NG-EXCEPTIONS.md`. MIT is GPL-compatible, so retaining the source's MIT grant does not remove the GPL obligations that apply to the combined binary.
+Compass Navigation Overhaul was originally released by alexsylex under the MIT License. That original copyright and permission notice is preserved in `licenses/CompassNavigationOverhaul-Original-MIT.txt`. The MIT-licensed original portions remain subject to that notice; distribution of the combined update is additionally governed by the GPL terms stated above.
+
+The source build is pinned to CommonLibSSE-NG 7.5.4. Its GPL-3.0-or-later text and upstream Modding/Linking Exceptions are retained in `licenses/CommonLibSSE-NG-GPL-3.0-or-later.txt` and `licenses/CommonLibSSE-NG-EXCEPTIONS.md`.
 
 Third-party licenses and build dependency provenance are documented in `THIRD_PARTY_NOTICES.md` and `licenses/`.
 
-Game data, Bethesda assets, and externally distributed mod assets are not relicensed by this repository. Their original licenses and permissions continue to apply.
+Game data, Bethesda assets, original SWFs, and externally distributed mod assets are not relicensed by this repository. Their original licenses and permissions continue to apply.

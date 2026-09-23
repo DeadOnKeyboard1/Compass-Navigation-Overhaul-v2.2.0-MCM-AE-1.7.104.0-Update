@@ -2,6 +2,10 @@
 
 This project uses third-party software through its CMake and vcpkg build configuration. License texts distributed with this repository are in `licenses/`.
 
+## Project and original-source licensing
+
+The repository root `LICENSE` contains GPL-3.0-or-later and is the primary license for the combined Skyrim 1.7.104.0 update. The original Compass Navigation Overhaul source by alexsylex was MIT-licensed; that original notice is preserved in `licenses/CompassNavigationOverhaul-Original-MIT.txt`.
+
 ## CommonLibSSE-NG build dependency
 
 The committed custom port pins CommonLibSSE-NG to the exact revision used for this source tree:
@@ -21,6 +25,7 @@ The CommonLibSSE-NG port also pulls its normal build dependencies through vcpkg.
 
 | Component | License | License file |
 | --- | --- | --- |
+| Original Compass Navigation Overhaul source | MIT | `licenses/CompassNavigationOverhaul-Original-MIT.txt` |
 | CommonLibSSE-NG 7.5.4 | GPL-3.0-or-later with Modding/Linking Exceptions | `licenses/CommonLibSSE-NG-GPL-3.0-or-later.txt`, `licenses/CommonLibSSE-NG-EXCEPTIONS.md` |
 | DirectXMath | MIT | `licenses/DirectXMath-MIT.txt` |
 | DirectX Tool Kit | MIT | `licenses/DirectXTK-MIT.txt` |
