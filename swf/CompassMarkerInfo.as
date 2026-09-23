@@ -38,14 +38,15 @@ class CompassMarkerInfo extends MovieClip
 											  Distance.HeightIndicatorInstance._width / 3;
 
 		// Height like 3 or 4 floors. Measured in Skyrim units.
+		var markerAlpha:Number = (Movie != undefined && !isNaN(Movie._alpha)) ? Movie._alpha : 0;
 		if (a_heightDifference > 840)
 		{
-			Distance.HeightIndicatorInstance._alpha = Math.max(Movie._alpha, 75);
+			Distance.HeightIndicatorInstance._alpha = Math.max(markerAlpha, 75);
 			Distance.HeightIndicatorInstance.gotoAndStop("Above");
 		}
 		else if (a_heightDifference < -840)
 		{
-			Distance.HeightIndicatorInstance._alpha = Math.max(Movie._alpha, 75);
+			Distance.HeightIndicatorInstance._alpha = Math.max(markerAlpha, 75);
 			Distance.HeightIndicatorInstance.gotoAndStop("Below");
 		}
 		else

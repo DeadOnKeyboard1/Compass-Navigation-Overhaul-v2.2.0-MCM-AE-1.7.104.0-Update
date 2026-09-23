@@ -1,0 +1,58 @@
+$CNO_AngleKeepDetails_Desc	Ángulo en el que los detalles de un marcador ya enfocado permanecen visibles.
+$CNO_AngleKeepDetails_Title	Ángulo para mantener detalles
+$CNO_AngleShowDetails_Desc	Ángulo desde el centro de la brújula en el que empiezan a mostrarse los detalles del marcador.
+$CNO_AngleShowDetails_Title	Ángulo para mostrar detalles
+$CNO_CompassOffsetX_Desc	Desplazamiento horizontal aplicado a la brújula.
+$CNO_CompassOffsetX_Title	Desplazamiento horizontal
+$CNO_CompassOffsetY_Desc	Desplazamiento vertical aplicado a la brújula.
+$CNO_CompassOffsetY_Title	Desplazamiento vertical
+$CNO_CompassScale_Desc	Escala del elemento HUD de la brújula.
+$CNO_CompassScale_Title	Escala de la brújula
+$CNO_FocusDelay_Desc	Retardo antes de mostrar los detalles del marcador enfocado.
+$CNO_FocusDelay_Title	Retardo de enfoque
+$CNO_Header_CompassMarkers	Marcadores de la brújula
+$CNO_Header_CompassPosition	Posición y escala de la brújula
+$CNO_Header_PositionScale	Posición y escala
+$CNO_Header_Timing	Temporización
+$CNO_Header_Visibility	Visibilidad
+$CNO_HideInCombat_Desc	Oculta la lista de misiones mientras el jugador está en combate.
+$CNO_HideInCombat_Title	Ocultar en combate
+$CNO_JoggingDelay_Desc	Retardo antes de mostrar la lista de misiones mientras corres.
+$CNO_JoggingDelay_Title	Retardo al correr
+$CNO_MaxHeight_Desc	Altura máxima utilizada por la lista de misiones.
+$CNO_MaxHeight_Title	Altura máxima
+$CNO_Page_Compass	Brújula
+$CNO_Page_QuestList	Lista de misiones
+$CNO_PositionX_Desc	Posición horizontal de la lista de misiones.
+$CNO_PositionX_Title	Posición horizontal
+$CNO_PositionY_Desc	Posición vertical de la lista de misiones.
+$CNO_PositionY_Title	Posición vertical
+$CNO_Scale_Desc	Escala de la lista de misiones.
+$CNO_Scale_Title	Escala de la lista de misiones
+$CNO_ShowEnemyMarkers_Desc	Muestra los marcadores de enemigos en la brújula.
+$CNO_ShowEnemyMarkers_Title	Mostrar marcadores de enemigos
+$CNO_ShowEnemyName_Desc	Muestra el nombre del enemigo debajo del marcador de enemigo enfocado.
+$CNO_ShowEnemyName_Title	Mostrar nombre del enemigo
+$CNO_ShowExteriors_Desc	Muestra la lista de misiones en exteriores.
+$CNO_ShowExteriors_Title	Mostrar en exteriores
+$CNO_ShowInteriorMarkers_Desc	Permite que los marcadores de ubicaciones compatibles sigan visibles en interiores.
+$CNO_ShowInteriorMarkers_Title	Mostrar marcadores en interiores
+$CNO_ShowInteriors_Desc	Muestra la lista de misiones en interiores.
+$CNO_ShowInteriors_Title	Mostrar en interiores
+$CNO_ShowObjectiveTarget_Desc	Muestra el objetivo de misión enfocado debajo de la brújula.
+$CNO_ShowObjectiveTarget_Title	Mostrar objetivo como destino
+$CNO_ShowOtherObjectivesCount_Desc	Muestra cuántos objetivos adicionales usan el mismo marcador.
+$CNO_ShowOtherObjectivesCount_Title	Mostrar número de otros objetivos
+$CNO_ShowUndiscovered_Desc	Muestra los marcadores de ubicaciones no descubiertas en la brújula.
+$CNO_ShowUndiscovered_Title	Mostrar ubicaciones no descubiertas
+$CNO_SprintingDelay_Desc	Retardo antes de mostrar la lista de misiones al esprintar.
+$CNO_SprintingDelay_Title	Retardo al esprintar
+$CNO_Title	Compass Navigation Overhaul
+$CNO_UndiscoveredUnknownInfo_Desc	Oculta el nombre de la ubicación hasta descubrirla. La distancia y la altura siguen visibles.
+$CNO_UndiscoveredUnknownInfo_Title	Ocultar nombres de ubicaciones no descubiertas
+$CNO_UndiscoveredUnknownMarker_Desc	Usa un icono de interrogación hasta que se descubra la ubicación.
+$CNO_UndiscoveredUnknownMarker_Title	Usar ? para ubicaciones no descubiertas
+$CNO_UseMetric_Desc	Muestra las distancias de los marcadores usando unidades métricas.
+$CNO_UseMetric_Title	Usar unidades métricas
+$CNO_WalkingDelay_Desc	Retardo antes de mostrar la lista de misiones mientras caminas.
+$CNO_WalkingDelay_Title	Retardo al caminar

@@ -20,14 +20,14 @@ namespace CNO
 		}
 
 		void ProcessQuestMarker(RE::TESQuest* a_quest, RE::BGSInstancedQuestObjective* a_questObjective,
-								int a_questAgeIndex, RE::TESObjectREFR* a_marker, std::uint32_t a_markerIcon);
+			int a_questAgeIndex, RE::TESObjectREFR* a_marker, std::uint32_t a_markerIcon, std::uint32_t a_markerIndex);
 
 		void ProcessLocationMarker(RE::ExtraMapMarker* a_mapMarker, RE::TESObjectREFR* a_marker,
-								   std::uint32_t a_markerIcon);
+			std::uint32_t a_markerIcon, std::uint32_t a_markerIndex, RE::HUDMarker::ScaleformData* a_markerData);
 
-		void ProcessEnemyMarker(RE::Character* a_enemy, std::uint32_t a_markerIcon);
+		void ProcessEnemyMarker(RE::Character* a_enemy, std::uint32_t a_markerIcon, std::uint32_t a_markerIndex);
 
-		void ProcessPlayerSetMarker(RE::TESObjectREFR* a_marker, std::uint32_t a_markerIcon);
+		void ProcessPlayerSetMarker(RE::TESObjectREFR* a_marker, std::uint32_t a_markerIcon, std::uint32_t a_markerIndex);
 
 		void SetMarkersExtraInfo();
 
@@ -50,12 +50,6 @@ namespace CNO
 
 		std::string GetSideInQuest(RE::QUEST_DATA::Type a_questType) const;
 
-		Compass* compass = Compass::GetSingleton();
-		QuestItemList* questItemList = QuestItemList::GetSingleton();
-
-		float facingAngle = settings::display::angleToShowMarkerDetails;
-		float keepFocusedAngle = settings::display::angleToKeepMarkerDetailsShown;
-
 		float timePreFocusingMarker = 0.0F;
 		float timeFocusingMarker = 0.0F;
 
@@ -66,17 +60,17 @@ namespace CNO
 		std::unordered_map<RE::TESObjectREFR*, std::unordered_map<RE::TESQuest*, QuestItem>> questItems;
 		std::unordered_map<RE::TESObjectREFR*, QuestItem> miscQuestItem;
 
-		RE::HUDMarkerManager* const hudMarkerManager = RE::HUDMarkerManager::GetSingleton();
 		RE::PlayerCharacter* player = RE::PlayerCharacter::GetSingleton();
 		RE::PlayerCamera* playerCamera = RE::PlayerCamera::GetSingleton();
-		RE::BSTimer* timeManager = RE::BSTimer::GetTimeManager();
+		RE::BSTimer* timeManager = RE::BSTimer::GetSingleton();
 
-		// Factions to lookup
-		// Reference: Creation Kit -> Skyrim.esm, Dawnguard.esm
-		const RE::TESFaction* const imperialLegionFaction = RE::TESForm::LookupByID(0x0002BF9A)->As<RE::TESFaction>();
-		const RE::TESFaction* const stormCloaksFaction = RE::TESForm::LookupByID(0x00028849)->As<RE::TESFaction>();
-		const RE::TESFaction* const sonsOfSkyrimFaction = RE::TESForm::LookupByID(0x0002BF9B)->As<RE::TESFaction>();
-		const RE::TESFaction* const dawnGuardFaction = RE::TESForm::LookupByID(0x02014217)->As<RE::TESFaction>();
-		const RE::TESFaction* const vampireFaction = RE::TESForm::LookupByID(0x02003376)->As<RE::TESFaction>();
+		static const RE::TESFaction* LookupFaction(RE::FormID a_formID)
+		{
+			if (auto* form = RE::TESForm::LookupByID(a_formID)) {
+				return form->As<RE::TESFaction>();
+			}
+			return nullptr;
+		}
+
 	};
 }

@@ -1,0 +1,58 @@
+$CNO_AngleKeepDetails_Desc	Winkel, innerhalb dessen bereits fokussierte Markerdetails sichtbar bleiben.
+$CNO_AngleKeepDetails_Title	Winkel zum Beibehalten der Details
+$CNO_AngleShowDetails_Desc	Winkel zur Kompassmitte, ab dem Markerdetails angezeigt werden.
+$CNO_AngleShowDetails_Title	Winkel zum Anzeigen der Details
+$CNO_CompassOffsetX_Desc	Horizontaler Versatz des Kompasses.
+$CNO_CompassOffsetX_Title	Horizontaler Versatz
+$CNO_CompassOffsetY_Desc	Vertikaler Versatz des Kompasses.
+$CNO_CompassOffsetY_Title	Vertikaler Versatz
+$CNO_CompassScale_Desc	Skalierung des Kompasses.
+$CNO_CompassScale_Title	Kompassgröße
+$CNO_FocusDelay_Desc	Verzögerung, bevor Details des fokussierten Markers angezeigt werden.
+$CNO_FocusDelay_Title	Fokusverzögerung
+$CNO_Header_CompassMarkers	Kompassmarker
+$CNO_Header_CompassPosition	Kompassposition & Skalierung
+$CNO_Header_PositionScale	Position & Skalierung
+$CNO_Header_Timing	Verzögerungen
+$CNO_Header_Visibility	Sichtbarkeit
+$CNO_HideInCombat_Desc	Questliste ausblenden, solange sich der Spieler im Kampf befindet.
+$CNO_HideInCombat_Title	Im Kampf ausblenden
+$CNO_JoggingDelay_Desc	Verzögerung, bevor die Questliste beim Laufen angezeigt wird.
+$CNO_JoggingDelay_Title	Verzögerung beim Laufen
+$CNO_MaxHeight_Desc	Maximale Höhe der Questliste.
+$CNO_MaxHeight_Title	Maximale Höhe
+$CNO_Page_Compass	Kompass
+$CNO_Page_QuestList	Questliste
+$CNO_PositionX_Desc	Horizontale Position der Questliste.
+$CNO_PositionX_Title	Horizontale Position
+$CNO_PositionY_Desc	Vertikale Position der Questliste.
+$CNO_PositionY_Title	Vertikale Position
+$CNO_Scale_Desc	Größe der Questliste.
+$CNO_Scale_Title	Skalierung der Questliste
+$CNO_ShowEnemyMarkers_Desc	Gegnermarker auf dem Kompass anzeigen.
+$CNO_ShowEnemyMarkers_Title	Gegnermarker anzeigen
+$CNO_ShowEnemyName_Desc	Namen des fokussierten Gegners unter dem Marker anzeigen.
+$CNO_ShowEnemyName_Title	Gegnernamen anzeigen
+$CNO_ShowExteriors_Desc	Questliste im Freien anzeigen.
+$CNO_ShowExteriors_Title	Im Freien anzeigen
+$CNO_ShowInteriorMarkers_Desc	Unterstützte Ortsmarker auch in Innenräumen anzeigen.
+$CNO_ShowInteriorMarkers_Title	Marker in Innenräumen anzeigen
+$CNO_ShowInteriors_Desc	Questliste in Innenräumen anzeigen.
+$CNO_ShowInteriors_Title	In Innenräumen anzeigen
+$CNO_ShowObjectiveTarget_Desc	Das fokussierte Questziel unter dem Kompass anzeigen.
+$CNO_ShowObjectiveTarget_Title	Questziel als Ziel anzeigen
+$CNO_ShowOtherObjectivesCount_Desc	Anzeigen, wie viele weitere Questziele denselben Marker verwenden.
+$CNO_ShowOtherObjectivesCount_Title	Anzahl weiterer Questziele anzeigen
+$CNO_ShowUndiscovered_Desc	Unentdeckte Ortsmarker auf dem Kompass anzeigen.
+$CNO_ShowUndiscovered_Title	Unentdeckte Orte anzeigen
+$CNO_SprintingDelay_Desc	Verzögerung, bevor die Questliste beim Sprinten angezeigt wird.
+$CNO_SprintingDelay_Title	Verzögerung beim Sprinten
+$CNO_Title	Compass Navigation Overhaul
+$CNO_UndiscoveredUnknownInfo_Desc	Ortsnamen bis zur Entdeckung verbergen. Entfernung und Höhenunterschied bleiben sichtbar.
+$CNO_UndiscoveredUnknownInfo_Title	Namen unentdeckter Orte verbergen
+$CNO_UndiscoveredUnknownMarker_Desc	Bis zur Entdeckung ein Fragezeichen als Markersymbol verwenden.
+$CNO_UndiscoveredUnknownMarker_Title	? für unentdeckte Orte verwenden
+$CNO_UseMetric_Desc	Markerentfernungen in metrischen Einheiten anzeigen.
+$CNO_UseMetric_Title	Metrische Einheiten verwenden
+$CNO_WalkingDelay_Desc	Verzögerung, bevor die Questliste beim Gehen angezeigt wird.
+$CNO_WalkingDelay_Title	Verzögerung beim Gehen

@@ -21,6 +21,13 @@ SKSEPluginLoad(const SKSE::LoadInterface* a_skse)
 
 	SKSE::Init(a_skse);
 
+	const auto runtimeVersion = REL::Module::get().version();
+	if (runtimeVersion != REL::Version{ 1, 7, 104, 0 }) {
+		logger::critical("Unsupported Skyrim runtime {}.{}.{}.{}; this build is restricted to 1.7.104.0 because it installs runtime-specific patch-site hooks.",
+			runtimeVersion.major(), runtimeVersion.minor(), runtimeVersion.patch(), runtimeVersion.build());
+		return false;
+	}
+
 	settings::Init(std::string(plugin->GetName()) + ".ini");
 
 	logger::set_level(settings::debug::logLevel, settings::debug::logLevel);
@@ -30,9 +37,15 @@ SKSEPluginLoad(const SKSE::LoadInterface* a_skse)
 		return false;
 	}
 
-	hooks::Install();
+	if (!hooks::Install()) {
+		logger::critical("Failed to install validated Skyrim 1.7.104.0 hooks; aborting plugin load to avoid patching unknown code");
+		return false;
+	}
 
 	logger::set_level(logger::level::info, logger::level::info);
+	logger::info("Marker settings: undiscovered={}, enemies={}, interior={}, objectiveTarget={}",
+		settings::display::showUndiscoveredLocationMarkers, settings::display::showEnemyMarkers,
+		settings::display::showInteriorMarkers, settings::display::showObjectiveAsTarget);
 	logger::info("Succesfully loaded!");
 
 	logger::set_level(settings::debug::logLevel, settings::debug::logLevel);

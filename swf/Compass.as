@@ -1,4 +1,4 @@
-﻿#include "utils.as"
+#include "utils.as"
 
 import CompassMarkerInfo;
 
@@ -63,28 +63,43 @@ function SetUnits(a_useMetric:Boolean):Void
 
 function SetFocusedMarkerInfo(a_target:String, a_distance:Number, a_heightDifference:Number, a_markerIndex:Number):Void
 {
-	FocusedMarkerInfo.SetDistanceAndHeightDifference(a_distance, a_heightDifference);
+	if (a_markerIndex < 0 || a_markerIndex >= MarkerList.length || MarkerList[a_markerIndex] == undefined || MarkerList[a_markerIndex].movie == undefined)
+	{
+		FocusedMarkerInfo.Movie = undefined;
+		FocusedMarkerInfo.Index = -1;
+		return;
+	}
+
 	FocusedMarkerInfo.Movie = MarkerList[a_markerIndex].movie;
 	FocusedMarkerInfo.Index = a_markerIndex;
 	FocusedMarkerInfo.Target.TextFieldInstance.text = a_target;
+	FocusedMarkerInfo.SetDistanceAndHeightDifference(a_distance, a_heightDifference);
 }
 
 function FocusMarker():Void
 {
-	FocusedMarkerInfo.gotoAndPlay("FadeIn");
+	if (FocusedMarkerInfo.Movie != undefined)
+	{
+		FocusedMarkerInfo.gotoAndPlay("FadeIn");
+	}
 }
 
 function UpdateFocusedMarker():Void
 {
 	var focusedMarker_mc:MovieClip = FocusedMarkerInfo.Movie;
 
-	if (focusedMarker_mc != undefined)
+	if (focusedMarker_mc != undefined && FocusedMarkerInfo.Index >= 0 && FocusedMarkerInfo.Index < MarkerList.length)
 	{
 		// SkyHUD rescale functionality
-		var skyHUDScaleMult:Number = (HUDMenu.scl_fCompassMarker != undefined && HUDMenu.scl_fCompassMarker != NaN) ? HUDMenu.scl_fCompassMarker : 1;
+		var skyHUDScaleMult:Number = (HUDMenu.scl_fCompassMarker != undefined && !isNaN(HUDMenu.scl_fCompassMarker)) ? HUDMenu.scl_fCompassMarker : 1;
 
-		var markerScale:Number = MarkersData[FocusedMarkerInfo.Index * COMPASS_STRIDE + COMPASS_SCALE] * skyHUDScaleMult;
+		var rawMarkerScale:Number = MarkersData[FocusedMarkerInfo.Index * COMPASS_STRIDE + COMPASS_SCALE];
+		if (rawMarkerScale == undefined || isNaN(rawMarkerScale))
+		{
+			return;
+		}
 
+		var markerScale:Number = rawMarkerScale * skyHUDScaleMult;
 		markerScale = Math.min(145, markerScale * 1.325);
 
 		focusedMarker_mc._xscale = markerScale;
@@ -98,9 +113,10 @@ function UpdateFocusedMarker():Void
 			FocusedMarkerInfo._x = focusedMarker_x;
 		}
 
-		FocusedMarkerInfo._alpha = Math.max(focusedMarker_mc._alpha, 75);
+		var focusedMarkerAlpha:Number = (focusedMarker_mc._alpha != undefined && !isNaN(focusedMarker_mc._alpha)) ? focusedMarker_mc._alpha : 0;
+		FocusedMarkerInfo._alpha = Math.max(focusedMarkerAlpha, 75);
 
-		if (HUDMenu.EnemyHealth_mc.BracketsInstance._alpha)
+		if (HUDMenu.EnemyHealth_mc != undefined && HUDMenu.EnemyHealth_mc.BracketsInstance != undefined && HUDMenu.EnemyHealth_mc.BracketsInstance._alpha)
 		{
 			FocusedMarkerInfo.Target.TextFieldInstance._alpha = 0;
 		}
@@ -132,10 +148,14 @@ function SetMarkers():Void
 {
 	while (MarkerList.length)
 	{
-		MarkerList.pop().movie.removeMovieClip();
+		var oldMarker:Object = MarkerList.pop();
+		if (oldMarker != undefined && oldMarker.movie != undefined)
+		{
+			oldMarker.movie.removeMovieClip();
+		}
 	}
 
-	var markersDataLength:Number = MarkersData.length / COMPASS_STRIDE;
+	var markersDataLength:Number = Math.floor(MarkersData.length / COMPASS_STRIDE);
 
 	for (var i:Number = 0; i < markersDataLength; i++)
 	{
@@ -161,6 +181,10 @@ function SetMarkers():Void
 		MarkerList.push(markerData);
 
 		var marker_mc:MovieClip = markerData.movie;
+		if (marker_mc == undefined)
+		{
+			continue;
+		}
 
 		// The function to position the markers in the compass checks if the marker type
 		// is CompassMarkerQuest (1) or CompassMarkerQuestDoor (2) to limit the marker position
@@ -177,12 +201,14 @@ function SetMarkers():Void
 			marker_mc.gotoAndStop(markerType);
 		}
 
-		marker_mc._alpha = MarkersData[j + COMPASS_ALPHA];
+		var markerAlpha:Number = MarkersData[j + COMPASS_ALPHA];
+		marker_mc._alpha = (markerAlpha != undefined && !isNaN(markerAlpha)) ? markerAlpha : 100;
 
 		// SkyHUD rescale functionality
-		var skyHUDScaleMult:Number = (HUDMenu.scl_fCompassMarker != undefined && HUDMenu.scl_fCompassMarker != NaN) ? HUDMenu.scl_fCompassMarker : 1;
+		var skyHUDScaleMult:Number = (HUDMenu.scl_fCompassMarker != undefined && !isNaN(HUDMenu.scl_fCompassMarker)) ? HUDMenu.scl_fCompassMarker : 1;
 
-		var markerScale:Number = MarkersData[j + COMPASS_SCALE] * skyHUDScaleMult;
+		var rawMarkerScale:Number = MarkersData[j + COMPASS_SCALE];
+		var markerScale:Number = (rawMarkerScale != undefined && !isNaN(rawMarkerScale)) ? rawMarkerScale * skyHUDScaleMult : 100;
 
 		markerScale = Math.min(135, markerScale);
 

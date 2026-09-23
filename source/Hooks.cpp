@@ -3,219 +3,186 @@
 #include "Settings.h"
 
 #include "HUDMarkerManager.h"
-#include "RE/B/BGSStoryTeller.h"
 #include "RE/T/TESDataHandler.h"
+#include "utils/Geometry.h"
 
 namespace hooks
 {
+	namespace
+	{
+		void LogMarkerHookOnce(std::atomic_bool& a_flag, std::string_view a_name, bool a_addResult,
+			const RE::HUDMarker::ScaleformData* a_markerData, const RE::NiPoint3* a_pos)
+		{
+			bool expected = false;
+			if (a_flag.compare_exchange_strong(expected, true)) {
+				logger::info("{} marker hook reached: AddMarker={}, markerData={}, pos={}",
+					a_name, a_addResult, a_markerData != nullptr, a_pos != nullptr);
+			}
+		}
+
+		std::atomic_bool s_loggedLocationHook{ false };
+		std::atomic_bool s_loggedEnemyHook{ false };
+		std::atomic_bool s_loggedPlayerHook{ false };
+	}
 	static inline RE::BSTArray<RE::BGSInstancedQuestObjective>& GetPlayerObjectives(RE::PlayerCharacter* a_player)
 	{
-		const auto version = REL::Module::get().version();
-		std::uintptr_t offset = 0x580;
-		if (version >= REL::Version{ 1, 6, 1130, 0 }) {
-			offset = 0x590;
-		} else if (version >= REL::Version{ 1, 6, 629, 0 }) {
-			offset = 0x588;
+		return a_player->GetPlayerRuntimeData().objectives;
+	}
+
+
+	static std::optional<std::uint32_t> TryGetMarkerIndex(const RE::HUDMarkerManager* a_manager,
+		const RE::HUDMarker::ScaleformData* a_markerData)
+	{
+		if (!a_manager) {
+			return std::nullopt;
 		}
-		return *reinterpret_cast<RE::BSTArray<RE::BGSInstancedQuestObjective>*>(reinterpret_cast<std::uintptr_t>(a_player) + offset);
+
+		// AddMarker advances currentMarkerIndex after writing the engine-owned slot.
+		// This is the authoritative index used by the original CNO implementation.
+		if (auto index = a_manager->GetLastMarkerIndex()) {
+			return index;
+		}
+
+		// Defensive fallback for callers that hand us a direct slot pointer.
+		if (!a_markerData) {
+			return std::nullopt;
+		}
+		const auto* begin = std::addressof(a_manager->scaleformMarkerData[0]);
+		const auto* end = begin + 49;
+		if (a_markerData < begin || a_markerData >= end) {
+			return std::nullopt;
+		}
+		return static_cast<std::uint32_t>(a_markerData - begin);
 	}
 
 	namespace compat
 	{
 		namespace AlternatePerspective
 		{
-			inline bool IsInstalled()
+			static bool s_dataLoaded = false;
+			static bool s_installed = false;
+			static RE::TESQuest* s_startCellQuest = nullptr;
+			static RE::TESObjectCELL* s_startCell = nullptr;
+
+			void OnDataLoaded()
 			{
-				static bool s_checked = false;
-				static bool s_installed = false;
-				if (!s_checked) {
-					s_checked = true;
-					if (auto dataHandler = RE::TESDataHandler::GetSingleton()) {
-						const auto* mod = dataHandler->LookupLoadedModByName("AlternatePerspective.esp");
-						s_installed = (mod != nullptr);
-						if (s_installed) {
-							SKSE::log::info("Alternate Perspective detected: automatic start room quest cleanup enabled.");
-						}
+				s_dataLoaded = true;
+				s_installed = false;
+				s_startCellQuest = nullptr;
+				s_startCell = nullptr;
+
+				if (auto* dataHandler = RE::TESDataHandler::GetSingleton()) {
+					s_installed = dataHandler->LookupLoadedModByName("AlternatePerspective.esp") != nullptr;
+					if (s_installed) {
+						s_startCellQuest = dataHandler->LookupForm<RE::TESQuest>(0x4246F9, "AlternatePerspective.esp");
+						s_startCell = dataHandler->LookupForm<RE::TESObjectCELL>(0x2C1D00, "AlternatePerspective.esp");
+						SKSE::log::info("Alternate Perspective detected: start-room compass marker suppression enabled.");
 					}
-				}
-				return s_installed;
-			}
-
-			inline RE::TESQuest* GetStartCellQuest()
-			{
-				static RE::TESQuest* s_quest = nullptr;
-				if (!s_quest && IsInstalled()) {
-					if (auto dataHandler = RE::TESDataHandler::GetSingleton()) {
-						s_quest = dataHandler->LookupForm<RE::TESQuest>(0x4246F9, "AlternatePerspective.esp");
-					}
-				}
-				return s_quest;
-			}
-
-			inline RE::TESObjectCELL* GetStartCell()
-			{
-				static RE::TESObjectCELL* s_cell = nullptr;
-				if (!s_cell && IsInstalled()) {
-					if (auto dataHandler = RE::TESDataHandler::GetSingleton()) {
-						s_cell = dataHandler->LookupForm<RE::TESObjectCELL>(0x2C1D00, "AlternatePerspective.esp");
-					}
-				}
-				return s_cell;
-			}
-
-			inline void CleanUpLingeringQuest(RE::PlayerCharacter* a_player, RE::BSTArray<RE::BGSInstancedQuestObjective>& a_playerObjectives)
-			{
-				if (!IsInstalled() || !a_player) {
-					return;
-				}
-
-				auto* startCellQ = GetStartCellQuest();
-				if (!startCellQ || !startCellQ->IsRunning()) {
-					return;
-				}
-
-				auto* currentCell = a_player->GetParentCell();
-				auto* startCell = GetStartCell();
-
-				// If player has left the starting room, shut down the quest cleanly
-				if (currentCell && currentCell != startCell) {
-					for (auto& obj : a_playerObjectives) {
-						if (obj.objective && obj.objective->ownerQuest == startCellQ) {
-							obj.instanceState = RE::QUEST_OBJECTIVE_STATE::kCompleted;
-						}
-					}
-					startCellQ->Stop();
-					if (auto storyTeller = RE::BGSStoryTeller::GetSingleton()) {
-						storyTeller->BeginShutDownQuest(startCellQ);
-					}
-					SKSE::log::info("Alternate Perspective: Cleaned up lingering start room quest (AP_StartCellQ) because player left start cell.");
 				}
 			}
 
-			inline bool IsStartCellTarget(RE::TESQuestTarget* a_questTarget, RE::PlayerCharacter* a_player)
+			static bool ShouldSuppressMarker(const RE::RefHandle& a_refHandle, RE::PlayerCharacter* a_player)
 			{
-				if (!IsInstalled() || !a_questTarget || !a_questTarget->unk00 || !a_player) {
-					return false;
-				}
-
-				auto* startCellQ = GetStartCellQuest();
-				if (!startCellQ) {
+				if (!s_dataLoaded || !s_installed || !s_startCellQuest || !s_startCell || !a_player) {
 					return false;
 				}
 
 				auto* currentCell = a_player->GetParentCell();
-				auto* startCell = GetStartCell();
-				if (currentCell && currentCell == startCell) {
-					return false; // Still in start cell: do not suppress
+				if (!currentCell || currentCell == s_startCell) {
+					return false;
 				}
 
-				auto questObjectiveTarget = reinterpret_cast<RE::TESQuestTarget*>(a_questTarget->unk00);
-				for (auto* obj : startCellQ->objectives) {
-					if (obj && obj->targets) {
-						for (int j = 0; j < obj->numTargets; j++) {
-							if (obj->targets[j] == questObjectiveTarget) {
-								return true;
-							}
+				for (auto* objective : s_startCellQuest->objectives) {
+					if (!objective || !objective->targets) {
+						continue;
+					}
+					for (std::uint32_t i = 0; i < objective->numTargets; ++i) {
+						auto* target = objective->targets[i];
+						if (!target) {
+							continue;
+						}
+						RE::ObjectRefHandle trackingRef;
+						target->GetTrackingRef(trackingRef, s_startCellQuest);
+						if (trackingRef && trackingRef.native_handle() == a_refHandle) {
+							return true;
 						}
 					}
 				}
-
 				return false;
 			}
 		}
 	}
 
 	bool UpdateQuests(const RE::HUDMarkerManager* a_hudMarkerManager, RE::HUDMarker::ScaleformData* a_markerData,
-					  RE::NiPoint3* a_pos, const RE::RefHandle& a_refHandle, std::uint32_t a_markerGotoFrame,
-					  RE::TESQuestTarget* a_questTarget)
+					  RE::NiPoint3* a_pos, const RE::RefHandle& a_refHandle, std::uint32_t a_markerGotoFrame)
 	{
-		auto player = RE::PlayerCharacter::GetSingleton();
-		if (player)
-		{
-			auto& playerObjectives = GetPlayerObjectives(player);
-			compat::AlternatePerspective::CleanUpLingeringQuest(player, playerObjectives);
-
-			// If this target belongs to Alternate Perspective's start room quest and player is outside, do not display marker
-			if (compat::AlternatePerspective::IsStartCellTarget(a_questTarget, player))
-			{
-				return false;
-			}
+		// This hook replaces Skyrim's original AddMarker call. Never suppress the
+		// vanilla marker merely because an auxiliary CNO argument is null.
+		auto* player = RE::PlayerCharacter::GetSingleton();
+		if (player && compat::AlternatePerspective::ShouldSuppressMarker(a_refHandle, player)) {
+			return false;
 		}
 
-		// `HUDMarkerManager::AddMarker` is also called iteratively for the same
-		// previously-created marker (via `a_refHandle`), so we can iteratively
-		// build the structure containing all the targets, objectives, etc. corresponding
-		// to the marker.
-		if (HUDMarkerManager::AddMarker(a_hudMarkerManager, a_markerData, a_pos, a_refHandle, a_markerGotoFrame))
-		{
-			RE::TESObjectREFR* marker = RE::TESObjectREFR::LookupByHandle(a_refHandle).get();
+		if (!HUDMarkerManager::AddMarker(a_hudMarkerManager, a_markerData, a_pos, a_refHandle, a_markerGotoFrame)) {
+			return false;
+		}
 
-			if (!player || !a_questTarget || !a_questTarget->unk00)
-			{
-				return true;
-			}
-
-			auto& playerObjectives = GetPlayerObjectives(player);
-
-			// The objectives are in oldest-to-newest order, so we iterate from newest-to-oldest
-			// to have it in the same order as in the journal
-			for (int ageIndex = static_cast<int>(playerObjectives.size()) - 1; ageIndex >= 0; ageIndex--)
-			{
-				RE::BGSInstancedQuestObjective* playerObjective = &playerObjectives[ageIndex];
-				if (!playerObjective)
-				{
-					continue;
-				}
-
-				// Only process actively displayed objectives!
-				if (playerObjective->instanceState != RE::QUEST_OBJECTIVE_STATE::kDisplayed)
-				{
-					continue;
-				}
-
-				RE::BGSQuestObjective* questObjective = playerObjective->objective;
-				if (!questObjective || !questObjective->targets)
-				{
-					continue;
-				}
-
-				RE::TESQuest* quest = questObjective->ownerQuest;
-				if (!quest || !quest->IsRunning())
-				{
-					continue;
-				}
-
-				for (int j = 0; j < questObjective->numTargets; j++)
-				{
-					if (!questObjective->targets[j])
-					{
-						continue;
-					}
-
-					auto questObjectiveTarget = reinterpret_cast<RE::TESQuestTarget*>(a_questTarget->unk00);
-
-					if (questObjectiveTarget == questObjective->targets[j])
-					{
-						CNO::HUDMarkerManager::GetSingleton()->ProcessQuestMarker(quest, playerObjective, ageIndex,
-																				  marker, a_markerGotoFrame);
-						return true;
-					}
-				}
-			}
-
+		RE::TESObjectREFR* marker = RE::TESObjectREFR::LookupByHandle(a_refHandle).get();
+		auto markerIndex = TryGetMarkerIndex(a_hudMarkerManager, a_markerData);
+		if (!player || !marker || !markerIndex) {
 			return true;
 		}
 
-		return false;
+		auto& playerObjectives = GetPlayerObjectives(player);
+		for (int ageIndex = static_cast<int>(playerObjectives.size()) - 1; ageIndex >= 0; --ageIndex) {
+			auto* playerObjective = std::addressof(playerObjectives[ageIndex]);
+			if (playerObjective->InstanceState != RE::QUEST_OBJECTIVE_STATE::kDisplayed) {
+				continue;
+			}
+
+			auto* questObjective = playerObjective->Objective;
+			if (!questObjective || !questObjective->targets) {
+				continue;
+			}
+
+			auto* quest = questObjective->ownerQuest;
+			if (!quest || !quest->IsRunning()) {
+				continue;
+			}
+
+			for (std::uint32_t j = 0; j < questObjective->numTargets; ++j) {
+				auto* target = questObjective->targets[j];
+				if (!target) {
+					continue;
+				}
+
+				RE::ObjectRefHandle trackingRef;
+				target->GetTrackingRef(trackingRef, quest);
+				if (trackingRef && trackingRef.native_handle() == a_refHandle) {
+					CNO::HUDMarkerManager::GetSingleton()->ProcessQuestMarker(
+						quest, playerObjective, ageIndex, marker, a_markerGotoFrame, *markerIndex);
+					break;
+				}
+			}
+		}
+
+		return true;
 	}
 
 	RE::TESWorldSpace* AllowedToShowMapMarker(const RE::TESObjectREFR* a_marker)
 	{
+		if (!a_marker) {
+			return nullptr;
+		}
+
 		RE::TESWorldSpace* markerWorldspace = a_marker->GetWorldspace();
 
 		if (settings::display::showInteriorMarkers)
 		{
 			auto player = RE::PlayerCharacter::GetSingleton();
+			if (!player) {
+				return markerWorldspace;
+			}
 
 			RE::TESWorldSpace* playerWorldspace = player->GetWorldspace();
 
@@ -232,80 +199,119 @@ namespace hooks
 	}
 
 	bool UpdateLocations(const RE::HUDMarkerManager* a_hudMarkerManager, RE::HUDMarker::ScaleformData* a_markerData,
-							   RE::NiPoint3* a_pos, const RE::RefHandle& a_refHandle, std::uint32_t a_markerGotoFrame)
+						   RE::NiPoint3* a_pos, const RE::RefHandle& a_refHandle, std::uint32_t a_markerGotoFrame)
 	{
-		RE::TESObjectREFR* marker = RE::TESObjectREFR::LookupByHandle(a_refHandle).get();
-		RE::PlayerCharacter* player = RE::PlayerCharacter::GetSingleton();
+		// IMPORTANT: this function replaces Skyrim's AddMarker call. Preserve the
+		// engine call first and make every CNO enhancement best-effort afterwards.
+		// Returning early before AddMarker is what caused normal compass markers to
+		// disappear while quest markers still worked.
+		auto* marker = RE::TESObjectREFR::LookupByHandle(a_refHandle).get();
 
-		RE::NiPoint3 markerPos = util::GetRealPosition(marker);
-		RE::NiPoint3 playerPos = util::GetRealPosition(player);
-
-		float sqDistanceToMarker = playerPos.GetSquaredDistance(markerPos);
-
-		if (sqDistanceToMarker < RE::HUDMarkerManager::GetSingleton()->sqRadiusToAddLocation)
-		{
-			auto mapMarker = marker->extraList.GetByType<RE::ExtraMapMarker>();
-
-			// Unvisited markers keep being shown in any case
-			if (settings::display::showUndiscoveredLocationMarkers || mapMarker->mapData->flags.all(RE::MapMarkerData::Flag::kVisible))
-			{
-				if (HUDMarkerManager::AddMarker(a_hudMarkerManager, a_markerData, a_pos, a_refHandle, a_markerGotoFrame)) 
-				{
-					CNO::HUDMarkerManager::GetSingleton()->ProcessLocationMarker(mapMarker, marker, a_markerGotoFrame);
-
-					return true;
+		// The original CNO option intentionally hides undiscovered locations. Only
+		// apply that filter when we can safely resolve valid map-marker data.
+		if (marker) {
+			if (auto* mapMarker = marker->extraList.GetByType<RE::ExtraMapMarker>(); mapMarker && mapMarker->mapData) {
+				if (!settings::display::showUndiscoveredLocationMarkers &&
+					!mapMarker->mapData->flags.all(RE::MapMarkerData::Flag::kVisible)) {
+					return false;
 				}
 			}
 		}
 
-		return false;
+		const bool added = HUDMarkerManager::AddMarker(a_hudMarkerManager, a_markerData, a_pos, a_refHandle, a_markerGotoFrame);
+		LogMarkerHookOnce(s_loggedLocationHook, "Location", added, a_markerData, a_pos);
+		if (!added) {
+			return false;
+		}
+
+		if (!marker) {
+			return true;
+		}
+
+		auto* mapMarker = marker->extraList.GetByType<RE::ExtraMapMarker>();
+		if (!mapMarker || !mapMarker->mapData) {
+			return true;
+		}
+
+		if (auto markerIndex = TryGetMarkerIndex(a_hudMarkerManager, a_markerData)) {
+			CNO::HUDMarkerManager::GetSingleton()->ProcessLocationMarker(
+				mapMarker, marker, a_markerGotoFrame, *markerIndex, a_markerData);
+		}
+		return true;
 	}
 
 	bool UpdateEnemies(const RE::HUDMarkerManager* a_hudMarkerManager, RE::HUDMarker::ScaleformData* a_markerData,
 							RE::NiPoint3* a_pos, const RE::RefHandle& a_refHandle, std::uint32_t a_markerGotoFrame)
 	{
-		if (settings::display::showEnemyMarkers)
-		{
-			if (HUDMarkerManager::AddMarker(a_hudMarkerManager, a_markerData, a_pos, a_refHandle, a_markerGotoFrame)) 
-			{
-				RE::TESObjectREFR* marker = RE::TESObjectREFR::LookupByHandle(a_refHandle).get();
-
-				CNO::HUDMarkerManager::GetSingleton()->ProcessEnemyMarker(marker->As<RE::Character>(), a_markerGotoFrame);
-
-				return true;
-			}
+		if (!settings::display::showEnemyMarkers) {
+			return false;
 		}
 
-		return false;
+		// Preserve Skyrim's marker creation first. CNO metadata is optional.
+		const bool added = HUDMarkerManager::AddMarker(a_hudMarkerManager, a_markerData, a_pos, a_refHandle, a_markerGotoFrame);
+		LogMarkerHookOnce(s_loggedEnemyHook, "Enemy", added, a_markerData, a_pos);
+		if (!added) {
+			return false;
+		}
+
+		auto* marker = RE::TESObjectREFR::LookupByHandle(a_refHandle).get();
+		if (!marker) {
+			return true;
+		}
+
+		auto* enemy = marker->As<RE::Character>();
+		if (!enemy) {
+			return true;
+		}
+
+		if (auto markerIndex = TryGetMarkerIndex(a_hudMarkerManager, a_markerData)) {
+			CNO::HUDMarkerManager::GetSingleton()->ProcessEnemyMarker(enemy, a_markerGotoFrame, *markerIndex);
+		}
+		return true;
 	}
 
 	bool UpdatePlayerSetMarker(const RE::HUDMarkerManager* a_hudMarkerManager, RE::HUDMarker::ScaleformData* a_markerData,
 								RE::NiPoint3* a_pos, const RE::RefHandle& a_refHandle, std::uint32_t a_markerGotoFrame)
 	{
-		if (HUDMarkerManager::AddMarker(a_hudMarkerManager, a_markerData, a_pos, a_refHandle, a_markerGotoFrame)) 
-		{
-			RE::TESObjectREFR* marker = RE::TESObjectREFR::LookupByHandle(a_refHandle).get();
+		// Preserve the vanilla player-set marker even when CNO cannot resolve its
+		// optional metadata/pointer state.
+		const bool added = HUDMarkerManager::AddMarker(a_hudMarkerManager, a_markerData, a_pos, a_refHandle, a_markerGotoFrame);
+		LogMarkerHookOnce(s_loggedPlayerHook, "Player-set", added, a_markerData, a_pos);
+		if (!added) {
+			return false;
+		}
 
-			CNO::HUDMarkerManager::GetSingleton()->ProcessPlayerSetMarker(marker, a_markerGotoFrame);
-
+		auto* marker = RE::TESObjectREFR::LookupByHandle(a_refHandle).get();
+		if (!marker) {
 			return true;
 		}
 
-		return false;
+		if (auto markerIndex = TryGetMarkerIndex(a_hudMarkerManager, a_markerData)) {
+			CNO::HUDMarkerManager::GetSingleton()->ProcessPlayerSetMarker(marker, a_markerGotoFrame, *markerIndex);
+		}
+		return true;
 	}
 
 	void UpdateCompass(RE::Compass* a_compass)
 	{
-		hooks::Compass::Update(a_compass);
+		if (!a_compass) {
+			return;
+		}
 
+		hooks::Compass::Update(a_compass);
 		CNO::HUDMarkerManager::GetSingleton()->SetMarkersExtraInfo();
 	}
 
 	namespace compat
 	{
-		RE::GFxMovieDef* MapMarkerFramework::GetCompassMovieDef()
+		RE::GFxMovieDef* MapMarkerFramework::GetCompassMovieDef(void*, RE::GFxMovieView* a_movieView)
 		{
-			return compassMovieDef;
+			// During HUD rebuilds the CNO-patched movie definition is temporarily unavailable.
+			// Preserve CoMAP's original behaviour instead of returning a null/stale definition.
+			if (compassMovieDef) {
+				return compassMovieDef;
+			}
+			return a_movieView ? a_movieView->GetMovieDef() : nullptr;
 		}
 	}
 }

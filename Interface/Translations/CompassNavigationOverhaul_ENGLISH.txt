@@ -1,0 +1,58 @@
+$CNO_AngleKeepDetails_Desc	Angle at which already focused marker details remain visible.
+$CNO_AngleKeepDetails_Title	Keep Details Angle
+$CNO_AngleShowDetails_Desc	Angle from compass center at which marker details begin to show.
+$CNO_AngleShowDetails_Title	Show Details Angle
+$CNO_CompassOffsetX_Desc	Horizontal offset applied to the compass.
+$CNO_CompassOffsetX_Title	Horizontal Offset
+$CNO_CompassOffsetY_Desc	Vertical offset applied to the compass.
+$CNO_CompassOffsetY_Title	Vertical Offset
+$CNO_CompassScale_Desc	Scale of the compass HUD element.
+$CNO_CompassScale_Title	Compass Scale
+$CNO_FocusDelay_Desc	Delay before focused marker details are shown.
+$CNO_FocusDelay_Title	Focus Delay
+$CNO_Header_CompassMarkers	Compass Markers
+$CNO_Header_CompassPosition	Compass Position & Scale
+$CNO_Header_PositionScale	Position & Scale
+$CNO_Header_Timing	Timing
+$CNO_Header_Visibility	Visibility
+$CNO_HideInCombat_Desc	Hide the quest list while the player is in combat.
+$CNO_HideInCombat_Title	Hide in Combat
+$CNO_JoggingDelay_Desc	Delay before showing the quest list while jogging.
+$CNO_JoggingDelay_Title	Jogging Delay
+$CNO_MaxHeight_Desc	Maximum height used by the quest list.
+$CNO_MaxHeight_Title	Maximum Height
+$CNO_Page_Compass	Compass
+$CNO_Page_QuestList	Quest List
+$CNO_PositionX_Desc	Horizontal position of the quest list.
+$CNO_PositionX_Title	Horizontal Position
+$CNO_PositionY_Desc	Vertical position of the quest list.
+$CNO_PositionY_Title	Vertical Position
+$CNO_Scale_Desc	Scale of the quest list.
+$CNO_Scale_Title	Quest List Scale
+$CNO_ShowEnemyMarkers_Desc	Show enemy markers on the compass.
+$CNO_ShowEnemyMarkers_Title	Show Enemy Markers
+$CNO_ShowEnemyName_Desc	Show the enemy name below the focused enemy marker.
+$CNO_ShowEnemyName_Title	Show Enemy Name
+$CNO_ShowExteriors_Desc	Show the quest list while outdoors.
+$CNO_ShowExteriors_Title	Show in Exteriors
+$CNO_ShowInteriorMarkers_Desc	Allow supported location markers to remain visible in interiors.
+$CNO_ShowInteriorMarkers_Title	Show Interior Markers
+$CNO_ShowInteriors_Desc	Show the quest list while indoors.
+$CNO_ShowInteriors_Title	Show in Interiors
+$CNO_ShowObjectiveTarget_Desc	Show the focused quest objective below the compass.
+$CNO_ShowObjectiveTarget_Title	Show Objective as Target
+$CNO_ShowOtherObjectivesCount_Desc	Show how many additional objectives use the same marker.
+$CNO_ShowOtherObjectivesCount_Title	Show Other Objectives Count
+$CNO_ShowUndiscovered_Desc	Show undiscovered location markers on the compass.
+$CNO_ShowUndiscovered_Title	Show Undiscovered Locations
+$CNO_SprintingDelay_Desc	Delay before showing the quest list while sprinting.
+$CNO_SprintingDelay_Title	Sprinting Delay
+$CNO_Title	Compass Navigation Overhaul
+$CNO_UndiscoveredUnknownInfo_Desc	Hide the location name until discovered. Distance and height remain visible.
+$CNO_UndiscoveredUnknownInfo_Title	Hide Undiscovered Location Names
+$CNO_UndiscoveredUnknownMarker_Desc	Use a question-mark icon until the location is discovered.
+$CNO_UndiscoveredUnknownMarker_Title	Use ? for Undiscovered Locations
+$CNO_UseMetric_Desc	Display marker distances using metric units.
+$CNO_UseMetric_Title	Use Metric Units
+$CNO_WalkingDelay_Desc	Delay before showing the quest list while walking.
+$CNO_WalkingDelay_Title	Walking Delay

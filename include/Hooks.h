@@ -10,8 +10,7 @@
 namespace hooks
 {
 	bool UpdateQuests(const RE::HUDMarkerManager* a_hudMarkerManager, RE::HUDMarker::ScaleformData* a_markerData,
-					  RE::NiPoint3* a_pos, const RE::RefHandle& a_refHandle, std::uint32_t a_markerGotoFrame,
-					  RE::TESQuestTarget* a_questTargets);
+					  RE::NiPoint3* a_pos, const RE::RefHandle& a_refHandle, std::uint32_t a_markerGotoFrame);
 
 	RE::TESWorldSpace* AllowedToShowMapMarker(const RE::TESObjectREFR* a_marker);
 
@@ -34,10 +33,11 @@ namespace hooks
 
 	public:
 
-		static inline REL::Relocation<bool(*)(const RE::HUDMarkerManager*, RE::TESQuest**,
-											  RE::BSTArray<RE::TESQuestTarget>*)> UpdateQuests{ UpdateQuestsId };
+		// These two relocations are used only as function-start addresses. Keeping
+		// invented function signatures here would reintroduce ABI assumptions.
+		static inline REL::Relocation<std::uintptr_t> UpdateQuests{ UpdateQuestsId };
 
-		static inline REL::Relocation<bool(*)(const RE::HUDMarkerManager*)> UpdateLocations{ UpdateLocationsId };
+		static inline REL::Relocation<std::uintptr_t> UpdateLocations{ UpdateLocationsId };
 
 		static inline REL::Relocation<bool(*)(const RE::HUDMarkerManager*, RE::HUDMarker::ScaleformData*,
 											  RE::NiPoint3*, const RE::RefHandle&, std::int32_t)> AddMarker{ AddMarkerId };
@@ -49,7 +49,7 @@ namespace hooks
 
 	public:
 
-		static inline REL::Relocation<RE::UI_MESSAGE_RESULTS(*)(const RE::HUDMenu*, RE::UIMessage&)> ProcessMessage{ ProcessMessageId };
+		static inline REL::Relocation<std::uintptr_t> ProcessMessage{ ProcessMessageId };
 	};
 
 	class Compass
@@ -64,34 +64,16 @@ namespace hooks
 		static inline REL::Relocation<void (*)(RE::Compass*)> Update{ UpdateId };
 	};
 
-	static inline void Install()
+	static inline bool Install()
 	{
-		// `HUDMarkerManager::UpdateQuests` (call to `HUDMarkerManager::AddMarker`)
+		// `HUDMarkerManager::UpdateQuests` (call to `HUDMarkerManager::AddMarker`).
+		// Hook the call directly. Do not reinterpret internal loop registers as quest structures.
 		struct UpdateQuestsHook : Hook<5>
 		{
 			static std::uintptr_t Address() { return HUDMarkerManager::UpdateQuests.address() + REL::VariantOffset{ 0x114, 0x180, 0x114 }.offset(); }
 
-			struct HookCodeGenerator : Xbyak::CodeGenerator
-			{
-				HookCodeGenerator(std::uintptr_t a_hookedAddress)
-				{
-					Xbyak::Label hookLabel;
-					Xbyak::Label retnLabel;
-
-					mov(ptr[rsp + 0x28], rbx);	// rbx = TESQuestTarget*
-					call(ptr[rip + hookLabel]);
-
-					jmp(ptr[rip + retnLabel]);
-
-					L(hookLabel), dq(reinterpret_cast<std::uintptr_t>(&UpdateQuests));
-					L(retnLabel), dq(a_hookedAddress + 5);
-
-					ready();
-				}
-			};
-
 			UpdateQuestsHook(std::uintptr_t a_hookedAddress) :
-				Hook{ a_hookedAddress, HookCodeGenerator{ a_hookedAddress } }
+				Hook{ a_hookedAddress, reinterpret_cast<std::uintptr_t>(&UpdateQuests) }
 			{}
 		};
 
@@ -144,11 +126,50 @@ namespace hooks
 			{}
 		};
 
-		UpdateQuestsHook updateQuestsHook{ UpdateQuestsHook::Address() };
-		AllowedToShowMapMarkerHook allowedToShowMapMarkerHook[2]{ AllowedToShowMapMarkerHook::Address1(), AllowedToShowMapMarkerHook::Address2() };
-		UpdateLocationsHook updateLocationsHook{ UpdateLocationsHook::Address() };
-		UpdateEnemiesHook updateEnemiesHook{ UpdateEnemiesHook::Address() };
-		UpdatePlayerSetMarkerHook updatePlayerSetMarkerHook{ UpdatePlayerSetMarkerHook::Address() };
+		const auto updateQuestsAddress = UpdateQuestsHook::Address();
+		const auto allowedMarkerAddress1 = AllowedToShowMapMarkerHook::Address1();
+		const auto allowedMarkerAddress2 = AllowedToShowMapMarkerHook::Address2();
+		const auto updateLocationsAddress = UpdateLocationsHook::Address();
+		const auto updateEnemiesAddress = UpdateEnemiesHook::Address();
+		const auto updatePlayerSetMarkerAddress = UpdatePlayerSetMarkerHook::Address();
+
+		auto relativeCallTarget = [](std::uintptr_t a_address) -> std::uintptr_t {
+			if (!a_address) {
+				return 0;
+			}
+			MEMORY_BASIC_INFORMATION mbi{};
+			if (!VirtualQuery(reinterpret_cast<const void*>(a_address), &mbi, sizeof(mbi)) ||
+				mbi.State != MEM_COMMIT || (mbi.Protect & (PAGE_GUARD | PAGE_NOACCESS)) != 0 ||
+				reinterpret_cast<std::uintptr_t>(mbi.BaseAddress) + mbi.RegionSize < a_address + 5) {
+				return 0;
+			}
+			if (*reinterpret_cast<const std::uint8_t*>(a_address) != 0xE8) {
+				return 0;
+			}
+
+			std::int32_t displacement = 0;
+			std::memcpy(&displacement, reinterpret_cast<const void*>(a_address + 1), sizeof(displacement));
+			return a_address + 5 + displacement;
+		};
+
+		const auto addMarkerAddress = HUDMarkerManager::AddMarker.address();
+		const auto allowedTarget1 = relativeCallTarget(allowedMarkerAddress1);
+		const auto allowedTarget2 = relativeCallTarget(allowedMarkerAddress2);
+		if (relativeCallTarget(updateQuestsAddress) != addMarkerAddress ||
+			relativeCallTarget(updateLocationsAddress) != addMarkerAddress ||
+			relativeCallTarget(updateEnemiesAddress) != addMarkerAddress ||
+			relativeCallTarget(updatePlayerSetMarkerAddress) != addMarkerAddress ||
+			!allowedTarget1 || allowedTarget1 != allowedTarget2)
+		{
+			SKSE::log::critical("CNO hook validation failed: Skyrim 1.7.104.0 patch sites no longer target the expected functions; refusing to patch unknown code");
+			return false;
+		}
+
+		UpdateQuestsHook updateQuestsHook{ updateQuestsAddress };
+		AllowedToShowMapMarkerHook allowedToShowMapMarkerHook[2]{ allowedMarkerAddress1, allowedMarkerAddress2 };
+		UpdateLocationsHook updateLocationsHook{ updateLocationsAddress };
+		UpdateEnemiesHook updateEnemiesHook{ updateEnemiesAddress };
+		UpdatePlayerSetMarkerHook updatePlayerSetMarkerHook{ updatePlayerSetMarkerAddress };
 		
 		// The destination of the hook for `AllowedToShowMapMarker` is the same,
 		// so we need to allocate memory for it only once
@@ -156,7 +177,7 @@ namespace hooks
 													updateLocationsHook.getSize() + updateEnemiesHook.getSize() +
 													updatePlayerSetMarkerHook.getSize() };
 		
-		defaultTrampoline.write_branch(updateQuestsHook);
+		defaultTrampoline.write_call(updateQuestsHook);
 		defaultTrampoline.write_call(allowedToShowMapMarkerHook[0]);
 		defaultTrampoline.write_call(allowedToShowMapMarkerHook[1]);
 		defaultTrampoline.write_call(updateLocationsHook);
@@ -164,17 +185,23 @@ namespace hooks
 		defaultTrampoline.write_call(updatePlayerSetMarkerHook);
 
 		Compass::vTable.write_vfunc(1, UpdateCompass);
+		return true;
 	}
 
 	namespace compat
 	{
+		namespace AlternatePerspective
+		{
+			void OnDataLoaded();
+		}
+
 		class MapMarkerFramework
 		{
 		public:
 
-			static RE::GFxMovieDef* GetCompassMovieDef();
+			static RE::GFxMovieDef* GetCompassMovieDef(void* a_originalRCX, RE::GFxMovieView* a_movieView);
 
-			static inline void Install(SKSE::WinAPI::HMODULE a_moduleHandle)
+			static inline bool Install(REX::W32::HMODULE a_moduleHandle)
 			{
 				// `ImportManager::SetupHUDMenu` call to a_movieView->GetMovieDef()
 				struct GetCompassMovieDefHook : Hook<6>
@@ -184,7 +211,12 @@ namespace hooks
 					{}
 				};
 
-				std::uintptr_t getCompassMovieDefHookAddress = SigScanner::FindPattern
+				if (!a_moduleHandle) {
+					SKSE::log::warn("CoMAP compatibility: MapMarkerFramework.dll module handle is null; skipping patch");
+					return false;
+				}
+
+				const std::uintptr_t patternAddress = SigScanner::FindPattern
 				<
 					"4C 8B F1 "	// mov     r14, rcx
 					"48 8B 02 "	// mov     rax, [rdx]
@@ -192,14 +224,26 @@ namespace hooks
 					"FF 50 08 "	// call    qword ptr [rax+8]
 					"?? 8B ?? "	// mov     ??, rax
 					"48 85 C0"	// test    rax, rax
-				>(a_moduleHandle) + 6;
+				>(a_moduleHandle);
 
+				if (!patternAddress) {
+					SKSE::log::warn("CoMAP compatibility: expected MapMarkerFramework signature was not found; skipping patch instead of installing an invalid hook");
+					return false;
+				}
+
+				const std::uintptr_t getCompassMovieDefHookAddress = patternAddress + 6;
 				GetCompassMovieDefHook getCompassMovieDefHook{ getCompassMovieDefHookAddress };
 
 				static CustomTrampoline mapMarkerFrameworkTrampoline{ "MapMarkerFramework Trampoline", a_moduleHandle,
 																	  getCompassMovieDefHook.getSize() };
 
+				if (!mapMarkerFrameworkTrampoline.IsValid()) {
+					SKSE::log::warn("CoMAP compatibility: failed to allocate trampoline memory; skipping patch");
+					return false;
+				}
+
 				mapMarkerFrameworkTrampoline.write_call(getCompassMovieDefHook);
+				return true;
 			}
 
 			static inline const SKSE::PluginInfo* pluginInfo = nullptr;

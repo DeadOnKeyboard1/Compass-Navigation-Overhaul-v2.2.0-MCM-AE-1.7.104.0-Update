@@ -21,3 +21,6 @@ CMakeUserPresets.json
 *.log
 *.tmp
 *.codex.tmp
+_toolchain/
+dist/
+build-logs/

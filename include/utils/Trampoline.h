@@ -2,10 +2,11 @@
 
 #if defined(SKSE_SUPPORT_XBYAK)
 
+#include "SKSE/Trampoline.h"
+#include "REX/W32.h"
+
 #include <Psapi.h>
 #include <xbyak/xbyak.h>
-
-#include "SKSE/Trampoline.h"
 
 namespace hooks
 {
@@ -184,40 +185,84 @@ namespace hooks
 				}
 			}
 
-			inst->set_trampoline(base, a_size,
-				[](void* a_mem, std::size_t)
-				{
-					SKSE::WinAPI::VirtualFree(a_mem, 0, MEM_RELEASE);
-				});
+			if (base) {
+				inst->set_trampoline(base, a_size,
+					[](void* a_mem, std::size_t)
+					{
+						REX::W32::VirtualFree(a_mem, 0, 0x00008000u);  // MEM_RELEASE; avoid Windows macro collision
+					});
+				valid = true;
+			} else {
+				SKSE::log::error("{}: failed to allocate {} bytes of trampoline memory near module", a_name, a_size);
+			}
 		}
+
+		bool IsValid() const noexcept { return valid; }
+
+	private:
+		bool valid = false;
 	};
 
 	class SigScanner
 	{
 	public:
 
-		 template <SKSE::stl::nttp::string str>
-		static std::uintptr_t FindPattern(SKSE::WinAPI::HMODULE a_moduleHandle)
+		template <SKSE::stl::nttp::string str>
+		static std::uintptr_t FindPattern(REX::W32::HMODULE a_moduleHandle)
 		{
-			MODULEINFO moduleInfo;
-			GetModuleInformation(GetCurrentProcess(), reinterpret_cast<HMODULE>(a_moduleHandle), &moduleInfo, sizeof(MODULEINFO));
-			auto base = reinterpret_cast<std::uintptr_t>(moduleInfo.lpBaseOfDll);
-			std::size_t size = moduleInfo.SizeOfImage;
-
-			std::size_t patternLength = (str.length() + 1) / 3; // 2/3 useful chars (1 space between byte chars)
-			auto pattern = REL::make_pattern<str>();
-
-			for (std::size_t offset = 0; offset < size - patternLength; offset++)
-			{
-				std::uintptr_t addr = base + offset;
-
-				if (pattern.match(addr))
-				{
-					return addr;
-				}
+			if (!a_moduleHandle) {
+				return 0;
 			}
 
-			return reinterpret_cast<std::uintptr_t>(nullptr);
+			MODULEINFO moduleInfo{};
+			if (!GetModuleInformation(GetCurrentProcess(), reinterpret_cast<HMODULE>(a_moduleHandle), &moduleInfo, sizeof(MODULEINFO)) ||
+				!moduleInfo.lpBaseOfDll || moduleInfo.SizeOfImage == 0) {
+				SKSE::log::warn("Signature scan: GetModuleInformation failed (error {})", GetLastError());
+				return 0;
+			}
+
+			const auto moduleBase = reinterpret_cast<std::uintptr_t>(moduleInfo.lpBaseOfDll);
+			const auto moduleEnd = moduleBase + static_cast<std::uintptr_t>(moduleInfo.SizeOfImage);
+			const std::size_t patternLength = (str.length() + 1) / 3;
+			if (patternLength == 0 || moduleInfo.SizeOfImage < patternLength) {
+				return 0;
+			}
+			auto pattern = REL::make_pattern<str>();
+
+			// Scan only committed, readable pages. Directly walking SizeOfImage can cross
+			// PAGE_NOACCESS/guard regions in third-party DLLs and raise an access violation.
+			std::uintptr_t cursor = moduleBase;
+			while (cursor < moduleEnd) {
+				MEMORY_BASIC_INFORMATION mbi{};
+				if (!VirtualQuery(reinterpret_cast<const void*>(cursor), &mbi, sizeof(mbi))) {
+					SKSE::log::warn("Signature scan: VirtualQuery failed at {:X} (error {})", cursor, GetLastError());
+					return 0;
+				}
+
+				const auto regionBase = (std::max)(cursor, reinterpret_cast<std::uintptr_t>(mbi.BaseAddress));
+				const auto rawRegionEnd = reinterpret_cast<std::uintptr_t>(mbi.BaseAddress) + mbi.RegionSize;
+				const auto regionEnd = (std::min)(moduleEnd, rawRegionEnd);
+				const DWORD protection = mbi.Protect & 0xFF;
+				const bool readable = mbi.State == MEM_COMMIT &&
+					(mbi.Protect & (PAGE_GUARD | PAGE_NOACCESS)) == 0 &&
+					(protection == PAGE_READONLY || protection == PAGE_READWRITE || protection == PAGE_WRITECOPY ||
+					 protection == PAGE_EXECUTE_READ || protection == PAGE_EXECUTE_READWRITE || protection == PAGE_EXECUTE_WRITECOPY);
+
+				if (readable && regionEnd > regionBase && regionEnd - regionBase >= patternLength) {
+					for (std::uintptr_t addr = regionBase; addr <= regionEnd - patternLength; ++addr) {
+						if (pattern.match(addr)) {
+							return addr;
+						}
+					}
+				}
+
+				if (regionEnd <= cursor) {
+					break;
+				}
+				cursor = regionEnd;
+			}
+
+			return 0;
 		}
 	};
 }

@@ -1,0 +1,342 @@
+{
+  "modName": "CompassNavigationOverhaul",
+  "displayName": "$CNO_Title",
+  "minMcmVersion": 11,
+  "cursorFillMode": "topToBottom",
+  "pages": [
+    {
+      "pageDisplayName": "$CNO_Page_QuestList",
+      "cursorFillMode": "topToBottom",
+      "content": [
+        {
+          "text": "$CNO_Header_PositionScale",
+          "type": "header"
+        },
+        {
+          "id": "fPositionX:QuestList",
+          "text": "$CNO_PositionX_Title",
+          "type": "slider",
+          "help": "$CNO_PositionX_Desc",
+          "valueOptions": {
+            "min": -0.5,
+            "max": 1.5,
+            "step": 0.005,
+            "defaultValue": 0.008,
+            "formatString": "{3}",
+            "sourceType": "ModSettingFloat"
+          }
+        },
+        {
+          "id": "fPositionY:QuestList",
+          "text": "$CNO_PositionY_Title",
+          "type": "slider",
+          "help": "$CNO_PositionY_Desc",
+          "valueOptions": {
+            "min": -0.5,
+            "max": 1.5,
+            "step": 0.005,
+            "defaultValue": 0.125,
+            "formatString": "{3}",
+            "sourceType": "ModSettingFloat"
+          }
+        },
+        {
+          "id": "fScale:QuestList",
+          "text": "$CNO_Scale_Title",
+          "type": "slider",
+          "help": "$CNO_Scale_Desc",
+          "valueOptions": {
+            "min": 25.0,
+            "max": 200.0,
+            "step": 5.0,
+            "defaultValue": 100.0,
+            "formatString": "{0}%",
+            "sourceType": "ModSettingFloat"
+          }
+        },
+        {
+          "id": "fMaxHeight:QuestList",
+          "text": "$CNO_MaxHeight_Title",
+          "type": "slider",
+          "help": "$CNO_MaxHeight_Desc",
+          "valueOptions": {
+            "min": 0.1,
+            "max": 1.0,
+            "step": 0.05,
+            "defaultValue": 0.5,
+            "formatString": "{2}",
+            "sourceType": "ModSettingFloat"
+          }
+        },
+        {
+          "text": "$CNO_Header_Visibility",
+          "type": "header"
+        },
+        {
+          "id": "bShowInExteriors:QuestList",
+          "text": "$CNO_ShowExteriors_Title",
+          "type": "toggle",
+          "help": "$CNO_ShowExteriors_Desc",
+          "valueOptions": {
+            "defaultValue": true,
+            "sourceType": "ModSettingBool"
+          }
+        },
+        {
+          "id": "bShowInInteriors:QuestList",
+          "text": "$CNO_ShowInteriors_Title",
+          "type": "toggle",
+          "help": "$CNO_ShowInteriors_Desc",
+          "valueOptions": {
+            "defaultValue": true,
+            "sourceType": "ModSettingBool"
+          }
+        },
+        {
+          "id": "bHideInCombat:QuestList",
+          "text": "$CNO_HideInCombat_Title",
+          "type": "toggle",
+          "help": "$CNO_HideInCombat_Desc",
+          "valueOptions": {
+            "defaultValue": false,
+            "sourceType": "ModSettingBool"
+          }
+        },
+        {
+          "text": "$CNO_Header_Timing",
+          "type": "header"
+        },
+        {
+          "id": "fWalkingDelayToShow:QuestList",
+          "text": "$CNO_WalkingDelay_Title",
+          "type": "slider",
+          "help": "$CNO_WalkingDelay_Desc",
+          "valueOptions": {
+            "min": 0.0,
+            "max": 5.0,
+            "step": 0.1,
+            "defaultValue": 0.0,
+            "formatString": "{1}s",
+            "sourceType": "ModSettingFloat"
+          }
+        },
+        {
+          "id": "fJoggingDelayToShow:QuestList",
+          "text": "$CNO_JoggingDelay_Title",
+          "type": "slider",
+          "help": "$CNO_JoggingDelay_Desc",
+          "valueOptions": {
+            "min": 0.0,
+            "max": 5.0,
+            "step": 0.1,
+            "defaultValue": 1.0,
+            "formatString": "{1}s",
+            "sourceType": "ModSettingFloat"
+          }
+        },
+        {
+          "id": "fSprintingDelayToShow:QuestList",
+          "text": "$CNO_SprintingDelay_Title",
+          "type": "slider",
+          "help": "$CNO_SprintingDelay_Desc",
+          "valueOptions": {
+            "min": 0.0,
+            "max": 5.0,
+            "step": 0.1,
+            "defaultValue": 1.5,
+            "formatString": "{1}s",
+            "sourceType": "ModSettingFloat"
+          }
+        }
+      ]
+    },
+    {
+      "pageDisplayName": "$CNO_Page_Compass",
+      "cursorFillMode": "topToBottom",
+      "content": [
+        {
+          "text": "$CNO_Header_CompassPosition",
+          "type": "header"
+        },
+        {
+          "id": "fOffsetX:Compass",
+          "text": "$CNO_CompassOffsetX_Title",
+          "type": "slider",
+          "help": "$CNO_CompassOffsetX_Desc",
+          "valueOptions": {
+            "min": -1000.0,
+            "max": 1000.0,
+            "step": 5.0,
+            "defaultValue": 0.0,
+            "formatString": "{0}px",
+            "sourceType": "ModSettingFloat"
+          }
+        },
+        {
+          "id": "fOffsetY:Compass",
+          "text": "$CNO_CompassOffsetY_Title",
+          "type": "slider",
+          "help": "$CNO_CompassOffsetY_Desc",
+          "valueOptions": {
+            "min": -500.0,
+            "max": 500.0,
+            "step": 5.0,
+            "defaultValue": 0.0,
+            "formatString": "{0}px",
+            "sourceType": "ModSettingFloat"
+          }
+        },
+        {
+          "id": "fScale:Compass",
+          "text": "$CNO_CompassScale_Title",
+          "type": "slider",
+          "help": "$CNO_CompassScale_Desc",
+          "valueOptions": {
+            "min": 25.0,
+            "max": 200.0,
+            "step": 5.0,
+            "defaultValue": 100.0,
+            "formatString": "{0}%",
+            "sourceType": "ModSettingFloat"
+          }
+        },
+        {
+          "text": "$CNO_Header_CompassMarkers",
+          "type": "header"
+        },
+        {
+          "id": "bUseMetricUnits:Display",
+          "text": "$CNO_UseMetric_Title",
+          "type": "toggle",
+          "help": "$CNO_UseMetric_Desc",
+          "valueOptions": {
+            "defaultValue": false,
+            "sourceType": "ModSettingBool"
+          }
+        },
+        {
+          "id": "bShowUndiscoveredLocationMarkers:Display",
+          "text": "$CNO_ShowUndiscovered_Title",
+          "type": "toggle",
+          "help": "$CNO_ShowUndiscovered_Desc",
+          "valueOptions": {
+            "defaultValue": true,
+            "sourceType": "ModSettingBool"
+          }
+        },
+        {
+          "id": "bUndiscoveredMeansUnknownMarkers:Display",
+          "text": "$CNO_UndiscoveredUnknownMarker_Title",
+          "type": "toggle",
+          "help": "$CNO_UndiscoveredUnknownMarker_Desc",
+          "valueOptions": {
+            "defaultValue": true,
+            "sourceType": "ModSettingBool"
+          }
+        },
+        {
+          "id": "bUndiscoveredMeansUnknownInfo:Display",
+          "text": "$CNO_UndiscoveredUnknownInfo_Title",
+          "type": "toggle",
+          "help": "$CNO_UndiscoveredUnknownInfo_Desc",
+          "valueOptions": {
+            "defaultValue": true,
+            "sourceType": "ModSettingBool"
+          }
+        },
+        {
+          "id": "bShowEnemyMarkers:Display",
+          "text": "$CNO_ShowEnemyMarkers_Title",
+          "type": "toggle",
+          "help": "$CNO_ShowEnemyMarkers_Desc",
+          "valueOptions": {
+            "defaultValue": true,
+            "sourceType": "ModSettingBool"
+          }
+        },
+        {
+          "id": "bShowEnemyNameUnderMarker:Display",
+          "text": "$CNO_ShowEnemyName_Title",
+          "type": "toggle",
+          "help": "$CNO_ShowEnemyName_Desc",
+          "valueOptions": {
+            "defaultValue": true,
+            "sourceType": "ModSettingBool"
+          }
+        },
+        {
+          "id": "bShowObjectiveAsTarget:Display",
+          "text": "$CNO_ShowObjectiveTarget_Title",
+          "type": "toggle",
+          "help": "$CNO_ShowObjectiveTarget_Desc",
+          "valueOptions": {
+            "defaultValue": true,
+            "sourceType": "ModSettingBool"
+          }
+        },
+        {
+          "id": "bShowOtherObjectivesCount:Display",
+          "text": "$CNO_ShowOtherObjectivesCount_Title",
+          "type": "toggle",
+          "help": "$CNO_ShowOtherObjectivesCount_Desc",
+          "valueOptions": {
+            "defaultValue": true,
+            "sourceType": "ModSettingBool"
+          }
+        },
+        {
+          "id": "bShowInteriorMarkers:Display",
+          "text": "$CNO_ShowInteriorMarkers_Title",
+          "type": "toggle",
+          "help": "$CNO_ShowInteriorMarkers_Desc",
+          "valueOptions": {
+            "defaultValue": true,
+            "sourceType": "ModSettingBool"
+          }
+        },
+        {
+          "id": "fAngleToShowMarkerDetails:Display",
+          "text": "$CNO_AngleShowDetails_Title",
+          "type": "slider",
+          "help": "$CNO_AngleShowDetails_Desc",
+          "valueOptions": {
+            "min": 1.0,
+            "max": 90.0,
+            "step": 1.0,
+            "defaultValue": 10.0,
+            "formatString": "{0}°",
+            "sourceType": "ModSettingFloat"
+          }
+        },
+        {
+          "id": "fAngleToKeepMarkerDetailsShown:Display",
+          "text": "$CNO_AngleKeepDetails_Title",
+          "type": "slider",
+          "help": "$CNO_AngleKeepDetails_Desc",
+          "valueOptions": {
+            "min": 1.0,
+            "max": 180.0,
+            "step": 1.0,
+            "defaultValue": 35.0,
+            "formatString": "{0}°",
+            "sourceType": "ModSettingFloat"
+          }
+        },
+        {
+          "id": "fFocusingDelayToShow:Display",
+          "text": "$CNO_FocusDelay_Title",
+          "type": "slider",
+          "help": "$CNO_FocusDelay_Desc",
+          "valueOptions": {
+            "min": 0.0,
+            "max": 2.0,
+            "step": 0.05,
+            "defaultValue": 0.1,
+            "formatString": "{2}s",
+            "sourceType": "ModSettingFloat"
+          }
+        }
+      ]
+    }
+  ]
+}

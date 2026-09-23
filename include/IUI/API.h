@@ -2,7 +2,7 @@
 
 namespace RE
 {
-	class GFxMovie;
+	class GFxMovieView;
 	class GFxMovieDef;
 	class GFxSpriteDef;
 	class GFxValue;
@@ -24,7 +24,7 @@ namespace IUI::API
 		};
 
 		RE::IMenu* menu;
-		RE::GFxMovie* movie;
+		RE::GFxMovieView* movie;
 	};
 
 	struct StartLoadInstancesMessage : Message
@@ -73,9 +73,13 @@ namespace IUI::API
 	template <typename MessageT> requires valid_message<MessageT>
 	inline const MessageT* TranslateAs(SKSE::MessagingInterface::Message* a_msg)
 	{
+		if (!a_msg || !a_msg->data) {
+			return nullptr;
+		}
+
 		if constexpr (std::is_same_v<Message, MessageT>)
 		{
-			return static_cast<Message*>(a_msg->data);
+			return a_msg->dataLen >= sizeof(Message) ? static_cast<Message*>(a_msg->data) : nullptr;
 		}
 		else
 		{

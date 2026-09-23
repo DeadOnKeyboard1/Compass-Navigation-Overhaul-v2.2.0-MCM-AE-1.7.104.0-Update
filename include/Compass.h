@@ -16,12 +16,17 @@ namespace CNO
 				   std::uint32_t a_index, std::uint32_t a_icon, const std::string_view& a_description) :
 				ref{ a_markerRef }, angleToPlayerCamera{ a_angleToPlayerCamera },
 				index{ a_index }, icon{ a_icon }, description{ a_description }
-			{}
+			{
+				if (auto* player = RE::PlayerCharacter::GetSingleton(); player && ref) {
+					distanceToPlayer = util::GetDistanceBetween(player, ref);
+					heightDifference = util::GetHeightDifferenceBetween(player, ref);
+				}
+			}
 
 			RE::TESObjectREFR* ref;
 			float angleToPlayerCamera;
-			float distanceToPlayer = util::GetDistanceBetween(RE::PlayerCharacter::GetSingleton(), ref);
-			float heightDifference = util::GetHeightDifferenceBetween(RE::PlayerCharacter::GetSingleton(), ref);
+			float distanceToPlayer = 0.0F;
+			float heightDifference = 0.0F;
 			std::uint32_t index;
 			std::uint32_t icon;
 			std::string description;
@@ -36,14 +41,40 @@ namespace CNO
 				static Compass singletonInstance{ a_originalCompass };
 				singleton = &singletonInstance;
 			}
+			else
+			{
+				// InfinityUI may rebuild the HUD during the same process. Rebind immediately
+				// at pre-replace time so no frame can keep a stale Scaleform object.
+				*static_cast<GFxDisplayObject*>(singleton) = a_originalCompass;
+				baseHolderX = baseHolderY = baseHolderScaleX = baseHolderScaleY = -99999.0F;
+			}
 		}
 
 		static Compass* GetSingleton() { return singleton; }
 
+		static void InvalidateSingleton()
+		{
+			if (singleton) {
+				singleton->Invalidate();
+			}
+			baseHolderX = baseHolderY = baseHolderScaleX = baseHolderScaleY = -99999.0F;
+		}
+
+		[[nodiscard]] bool IsReady() const noexcept { return IsUsable(); }
+
 		void SetupMod(const GFxDisplayObject& a_replaceCompass)
 		{
+			if (!a_replaceCompass.IsUsable()) {
+				return;
+			}
 			if (a_replaceCompass.HasMember("Compass"))
 			{
+				// A HUD/SWF reload can replace the holder with a different native layout.
+				// Force UpdateLayout() to capture the new baseline instead of reusing stale values.
+				baseHolderX = -99999.0F;
+				baseHolderY = -99999.0F;
+				baseHolderScaleX = -99999.0F;
+				baseHolderScaleY = -99999.0F;
 				*static_cast<GFxDisplayObject*>(this) = a_replaceCompass;
 
 				Invoke("Compass");
@@ -110,10 +141,16 @@ namespace CNO
 
 		void PostProcessMarkers(const std::unordered_map<std::uint32_t, bool>& a_unknownLocations, std::uint32_t a_markersCount)
 		{
-			GFxArray gfxIsUnknownLocations{ GetMovieView() };
+			auto* movieView = GetMovieView();
+			if (!IsReady() || !movieView) {
+				return;
+			}
+			GFxArray gfxIsUnknownLocations{ movieView };
+			if (!gfxIsUnknownLocations.IsUsable()) {
+				return;
+			}
 
-			for (std::uint32_t i = 0; i < a_markersCount; i++)
-			{
+			for (std::uint32_t i = 0; i < a_markersCount; ++i) {
 				gfxIsUnknownLocations.PushBack(a_unknownLocations.contains(i));
 			}
 
@@ -123,7 +160,7 @@ namespace CNO
 		void UpdateLayout()
 		{
 			auto movieView = GetMovieView();
-			if (!movieView || !IsObject())
+			if (!movieView || !IsReady())
 			{
 				return;
 			}
@@ -165,27 +202,21 @@ namespace CNO
 					logger::info("Captured base CompassHolder scale: ({:.1f}%, {:.1f}%)", baseHolderScaleX, baseHolderScaleY);
 				}
 
-				bool hasCustomCompass = (settings::compass::offsetX != 0.0F || settings::compass::offsetY != 0.0F || std::abs(settings::compass::scale - 100.0F) > 0.01F);
-				if (hasCustomCompass)
-				{
-					float newX = baseHolderX + settings::compass::offsetX;
-					float newY = baseHolderY + settings::compass::offsetY;
-					float newScaleX = baseHolderScaleX * (settings::compass::scale / 100.0F);
-					float newScaleY = baseHolderScaleY * (settings::compass::scale / 100.0F);
+				const float scaleMultiplier = std::max(settings::compass::scale, 1.0F) / 100.0F;
+				const float newX = baseHolderX + settings::compass::offsetX;
+				const float newY = baseHolderY + settings::compass::offsetY;
+				const float newScaleX = baseHolderScaleX * scaleMultiplier;
+				const float newScaleY = baseHolderScaleY * scaleMultiplier;
 
-					holder.SetMember("_x", newX);
-					holder.SetMember("_y", newY);
-					holder.SetMember("_xscale", newScaleX);
-					holder.SetMember("_yscale", newScaleY);
+				// Always write the calculated values. This is required to restore the captured
+				// native UI layout after the user resets the MCM values to 0/0/100.
+				holder.SetMember("_x", newX);
+				holder.SetMember("_y", newY);
+				holder.SetMember("_xscale", newScaleX);
+				holder.SetMember("_yscale", newScaleY);
 
-					logger::info("Compass UpdateLayout: holder pos({:.1f},{:.1f}) scale=({:.1f}%, {:.1f}%) [base={:.1f}%, mult={:.1f}%]",
-						newX, newY, newScaleX, newScaleY, baseHolderScaleX, settings::compass::scale);
-				}
-				else
-				{
-					logger::info("Compass UpdateLayout: UI Mod native layout preserved (pos {:.1f},{:.1f}, scale {:.1f}%)",
-						baseHolderX, baseHolderY, baseHolderScaleX);
-				}
+				logger::info("Compass UpdateLayout: holder pos({:.1f},{:.1f}) scale=({:.1f}%, {:.1f}%) [base=({:.1f},{:.1f}), baseScale=({:.1f}%, {:.1f}%), mult={:.1f}%]",
+					newX, newY, newScaleX, newScaleY, baseHolderX, baseHolderY, baseHolderScaleX, baseHolderScaleY, settings::compass::scale);
 			}
 			else
 			{

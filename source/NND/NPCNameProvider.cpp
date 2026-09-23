@@ -4,15 +4,20 @@ namespace logger = SKSE::log;
 
 namespace NND
 {
-	const char* NPCNameProvider::GetName(RE::Actor* actor) const
+	std::string NPCNameProvider::GetName(RE::Actor* actor) const
 	{
+		if (!actor) {
+			return {};
+		}
+
 		if (nnd) {
 			if (auto name = nnd->GetName(actor, API::NameContext::kEnemyHUD); !name.empty()) {
-				return name.data();
+				return std::string{ name };
 			}
 		}
 
-		return actor->GetDisplayFullName();
+		const char* fallback = actor->GetDisplayFullName();
+		return fallback ? std::string{ fallback } : std::string{};
 	}
 
 	void NPCNameProvider::RequestAPI()
@@ -25,5 +30,5 @@ namespace NND
 				logger::warn("Failed to obtain NND API");
 			}
 		}
-}
+	}
 }

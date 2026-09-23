@@ -5,22 +5,27 @@
 #include "RE/I/IMenu.h"
 
 #include "NND/NPCNameProvider.h"
+#include "utils/QuestText.h"
 
 namespace CNO
 {
 	void HUDMarkerManager::ProcessQuestMarker(RE::TESQuest* a_quest, RE::BGSInstancedQuestObjective* a_questObjective,
-											  int a_questAgeIndex, RE::TESObjectREFR* a_marker, std::uint32_t a_markerIcon)
+											  int a_questAgeIndex, RE::TESObjectREFR* a_marker, std::uint32_t a_markerIcon, std::uint32_t a_markerIndex)
 	{
+		if (!a_quest || !a_questObjective || !a_marker || !playerCamera) {
+			return;
+		}
+
 		float angleToPlayerCamera = GetAngleBetween(playerCamera, a_marker);
 
-		if ((IsTheFocusedMarker(a_marker) && angleToPlayerCamera < keepFocusedAngle) ||
-			angleToPlayerCamera < facingAngle)
+		if ((IsTheFocusedMarker(a_marker) && angleToPlayerCamera < settings::display::angleToKeepMarkerDetailsShown) ||
+			angleToPlayerCamera < settings::display::angleToShowMarkerDetails)
 		{
 			std::string description;
 
 			if (settings::display::showObjectiveAsTarget)
 			{
-				description = a_questObjective->GetDisplayTextWithReplacedTags().c_str();
+				description = util::GetObjectiveDisplayText(a_questObjective);
 			}
 			else
 			{
@@ -59,50 +64,47 @@ namespace CNO
 			if (it == facedMarkers.end())
 			{
 				facedMarkers.emplace_back(a_marker, angleToPlayerCamera,
-										  hudMarkerManager->currentMarkerIndex - 1,
+										  a_markerIndex,
 										  a_markerIcon, description);
 			}
 
 			RE::QUEST_DATA::Type questType = a_quest->GetType();
 
-			bool isInSameLocation = a_markerIcon == RE::HUDMarker::FrameOffsets::GetSingleton()->quest;
+			auto* frameOffsets = RE::HUDMarker::FrameOffsets::GetSingleton();
+			bool isInSameLocation = frameOffsets && a_markerIcon == frameOffsets->quest;
 
 			QuestItem* questItem;
 
 			if (questType == RE::QUEST_DATA::Type::kMiscellaneous)
 			{
-				if (!miscQuestItem.contains(a_marker))
-				{
-					miscQuestItem[a_marker] = QuestItem{ a_marker, questType, "$MISCELLANEOUS", isInSameLocation, a_questAgeIndex };
+				auto [it, inserted] = miscQuestItem.try_emplace(
+					a_marker, a_marker, questType, "$MISCELLANEOUS", isInSameLocation, a_questAgeIndex);
+				questItem = &it->second;
+				if (!inserted) {
+					questItem->isInSameLocation = questItem->isInSameLocation || isInSameLocation;
+					questItem->ageIndex = std::max(questItem->ageIndex, a_questAgeIndex);
 				}
-
-				questItem = &miscQuestItem[a_marker];
 			}
 			else
 			{
 				RE::BSString questFullName = a_quest->GetFullName();
-				ReplaceTagsInQuestText(&questFullName, a_quest, a_quest->currentInstanceID);
+				util::ReplaceTagsInQuestText(&questFullName, a_quest, a_quest->currentInstanceID);
 
-				questItems[a_marker][a_quest] = QuestItem{ a_marker, questType, questFullName.c_str(), isInSameLocation, a_questAgeIndex };
-
-				questItem = &questItems[a_marker][a_quest];
-			}
-
-			std::string currentObjectiveText = a_questObjective->GetDisplayTextWithReplacedTags().c_str();
-
-			bool isDuplicate = false;
-			for (const auto* existingObj : questItem->objectives)
-			{
-				if (existingObj == a_questObjective ||
-					existingObj->objective == a_questObjective->objective ||
-					std::string_view(existingObj->GetDisplayTextWithReplacedTags().c_str()) == currentObjectiveText)
-				{
-					isDuplicate = true;
-					break;
+				auto& markerQuests = questItems[a_marker];
+				auto [it, inserted] = markerQuests.try_emplace(
+					a_quest, a_marker, questType, questFullName.c_str(), isInSameLocation, a_questAgeIndex);
+				questItem = &it->second;
+				if (!inserted) {
+					questItem->isInSameLocation = questItem->isInSameLocation || isInSameLocation;
+					questItem->ageIndex = std::max(questItem->ageIndex, a_questAgeIndex);
 				}
 			}
 
-			if (!isDuplicate)
+			// The engine may call AddMarker more than once for the same instanced
+			// objective when it has multiple targets. De-duplicate by the instanced
+			// objective identity only; different radiant instances may share the same
+			// base BGSQuestObjective and must not be collapsed.
+			if (std::ranges::find(questItem->objectives, a_questObjective) == questItem->objectives.end())
 			{
 				questItem->objectives.push_back(a_questObjective);
 			}
@@ -110,61 +112,99 @@ namespace CNO
 	}
 
 	void HUDMarkerManager::ProcessLocationMarker(RE::ExtraMapMarker* a_mapMarker, RE::TESObjectREFR* a_marker,
-												 std::uint32_t a_markerIcon)
+												 std::uint32_t a_markerIcon, std::uint32_t a_markerIndex, RE::HUDMarker::ScaleformData* a_markerData)
 	{
+		if (!a_mapMarker || !a_mapMarker->mapData || !a_marker || !playerCamera) {
+			return;
+		}
+
 		float angleToPlayerCamera = GetAngleBetween(playerCamera, a_marker);
 
 		bool isDiscoveredLocation = a_mapMarker->mapData->flags.all(RE::MapMarkerData::Flag::kVisible);
 
-		if (isDiscoveredLocation || !settings::display::undiscoveredMeansUnknownInfo)
+		if ((IsTheFocusedMarker(a_marker) && angleToPlayerCamera < settings::display::angleToKeepMarkerDetailsShown) ||
+			angleToPlayerCamera < settings::display::angleToShowMarkerDetails)
 		{
-			if ((IsTheFocusedMarker(a_marker) && angleToPlayerCamera < keepFocusedAngle) ||
-				angleToPlayerCamera < facingAngle)
-			{
-				std::string_view locationFullName = a_mapMarker->mapData->locationName.GetFullName();
-
-				facedMarkers.emplace_back(a_marker, angleToPlayerCamera,
-										  hudMarkerManager->currentMarkerIndex - 1,
-										  a_markerIcon, locationFullName);
+			// Keep undiscovered locations in the focus pipeline so their distance/height
+			// can still be shown. Unknown-info mode hides only the name.
+			std::string_view locationDescription{};
+			if (isDiscoveredLocation || !settings::display::undiscoveredMeansUnknownInfo) {
+				locationDescription = a_mapMarker->mapData->locationName.GetFullName();
 			}
+
+			facedMarkers.emplace_back(a_marker, angleToPlayerCamera,
+								  a_markerIndex,
+								  a_markerIcon, locationDescription);
 		}
 
 		if (!isDiscoveredLocation && settings::display::undiscoveredMeansUnknownMarkers)
 		{
-			hudMarkerManager->scaleformMarkerData[hudMarkerManager->currentMarkerIndex - 1].icon.SetNumber(0);
+			// AddMarker has already copied the input ScaleformData into the manager buffer.
+			// Update that engine-owned slot (the original CNO behaviour), not the input
+			// temporary.  The explicit index check prevents an under/overflow write.
+			if (auto* manager = RE::HUDMarkerManager::GetSingleton(); manager && a_markerIndex < 49) {
+				manager->scaleformMarkerData[a_markerIndex].icon.SetNumber(0);
+			} else if (a_markerData) {
+				a_markerData->icon.SetNumber(0);
+			}
 		}
 	}
 
-	void HUDMarkerManager::ProcessEnemyMarker(RE::Character* a_enemy, std::uint32_t a_markerIcon)
+	void HUDMarkerManager::ProcessEnemyMarker(RE::Character* a_enemy, std::uint32_t a_markerIcon, std::uint32_t a_markerIndex)
 	{
+		if (!a_enemy || !playerCamera) {
+			return;
+		}
+
 		float angleToPlayerCamera = GetAngleBetween(playerCamera, a_enemy);
 
-		if ((IsTheFocusedMarker(a_enemy) && angleToPlayerCamera < keepFocusedAngle) ||
-			angleToPlayerCamera < facingAngle)
+		if ((IsTheFocusedMarker(a_enemy) && angleToPlayerCamera < settings::display::angleToKeepMarkerDetailsShown) ||
+			angleToPlayerCamera < settings::display::angleToShowMarkerDetails)
 		{
 			std::string enemyName = NND::NPCNameProvider::GetSingleton()->GetName(a_enemy);
 
 			facedMarkers.emplace_back(a_enemy, angleToPlayerCamera,
-									hudMarkerManager->currentMarkerIndex - 1,
+									a_markerIndex,
 									a_markerIcon, enemyName);
 		}
 	}
 
-	void HUDMarkerManager::ProcessPlayerSetMarker(RE::TESObjectREFR* a_marker, std::uint32_t a_markerIcon)
+	void HUDMarkerManager::ProcessPlayerSetMarker(RE::TESObjectREFR* a_marker, std::uint32_t a_markerIcon, std::uint32_t a_markerIndex)
 	{
+		if (!a_marker || !playerCamera) {
+			return;
+		}
+
 		float angleToPlayerCamera = GetAngleBetween(playerCamera, a_marker);
 
-		if ((IsTheFocusedMarker(a_marker) && angleToPlayerCamera < keepFocusedAngle) ||
-			angleToPlayerCamera < facingAngle)
+		if ((IsTheFocusedMarker(a_marker) && angleToPlayerCamera < settings::display::angleToKeepMarkerDetailsShown) ||
+			angleToPlayerCamera < settings::display::angleToShowMarkerDetails)
 		{
 			facedMarkers.emplace_back(a_marker, angleToPlayerCamera,
-										hudMarkerManager->currentMarkerIndex - 1,
+										a_markerIndex,
 										a_markerIcon, "");
 		}
 	}
 
 	void HUDMarkerManager::SetMarkersExtraInfo()
 	{
+		// These are engine singletons, but refreshing the pointers here avoids
+		// permanently caching null values if CNO is touched unusually early.
+		player = RE::PlayerCharacter::GetSingleton();
+		playerCamera = RE::PlayerCamera::GetSingleton();
+		timeManager = RE::BSTimer::GetSingleton();
+
+		auto* compass = Compass::GetSingleton();
+		auto* questItemList = QuestItemList::GetSingleton();
+		if (!compass || !compass->IsReady() || !questItemList || !questItemList->IsReady() || !player || !playerCamera || !timeManager) {
+			// InfinityUI may not have created/replaced the HUD instances yet. Do not
+			// retain stale marker data across frames while waiting for the UI.
+			facedMarkers.clear();
+			questItems.clear();
+			miscQuestItem.clear();
+			return;
+		}
+
 		bool focusChanged = UpdateFocusedMarker();
 
 		if (focusChanged)
@@ -183,33 +223,23 @@ namespace CNO
 		{
 			std::string focusedMarkerDescription = focusedMarker->description;
 
-			if (settings::display::showObjectiveAsTarget && settings::display::showOtherObjectivesCount)
+			const bool hasRegularQuests = questItems.contains(focusedMarker->ref);
+			const bool hasMiscQuest = miscQuestItem.contains(focusedMarker->ref);
+			isFocusedQuestMarker = hasRegularQuests || hasMiscQuest;
+
+			if (settings::display::showObjectiveAsTarget && settings::display::showOtherObjectivesCount && isFocusedQuestMarker)
 			{
-				int objectivesCount = 0;
-
-				if (questItems.contains(focusedMarker->ref))
-				{
-					isFocusedQuestMarker = true;
-
-					std::unordered_map<RE::TESQuest*, QuestItem>& questItemMap = questItems[focusedMarker->ref];
-
-					for (auto& [quest, questItem] : questItemMap)
-					{
+				std::size_t objectivesCount = 0;
+				if (hasRegularQuests) {
+					for (const auto& [quest, questItem] : questItems[focusedMarker->ref]) {
+						(void)quest;
 						objectivesCount += questItem.objectives.size();
 					}
 				}
-
-				if (miscQuestItem.contains(focusedMarker->ref))
-				{
-					isFocusedQuestMarker = true;
-
-					QuestItem& questItem = miscQuestItem[focusedMarker->ref];
-
-					objectivesCount += questItem.objectives.size();
+				if (hasMiscQuest) {
+					objectivesCount += miscQuestItem[focusedMarker->ref].objectives.size();
 				}
-
-				if (objectivesCount > 1)
-				{
+				if (objectivesCount > 1) {
 					focusedMarkerDescription += " (+" + std::to_string(objectivesCount - 1) + ")";
 				}
 			}
@@ -226,8 +256,14 @@ namespace CNO
 		}
 
 		RE::ActorState* playerState = player->AsActorState();
+		if (!playerState) {
+			facedMarkers.clear();
+			questItems.clear();
+			miscQuestItem.clear();
+			return;
+		}
 
-		bool canQuestItemListBeDisplayed = questItemList->CanBeDisplayed(player->GetParentCell(), playerState->IsWeaponDrawn());
+		bool canQuestItemListBeDisplayed = questItemList->CanBeDisplayed(player->GetParentCell(), player->IsInCombat());
 
 		if (!canQuestItemListBeDisplayed || focusChanged)
 		{
@@ -250,7 +286,9 @@ namespace CNO
 						// If we call a function more than once per frame (like in this for-loop)
 						// we need to update the stage with `GFxMovieView::Advance`, otherwise graphical
 						// glitches occur to the element when showing up
-						questItemList->GetMovieView()->Advance(0.0F);
+						if (auto* movieView = questItemList->GetMovieView()) {
+							movieView->Advance(0.0F);
+						}
 					}
 				}
 				
@@ -263,7 +301,9 @@ namespace CNO
 					// If we call a function more than once per frame (like in this for-loop)
 					// we need to update the stage with `GFxMovieView::Advance`, otherwise graphical
 					// glitches occur to the element when showing up
-					questItemList->GetMovieView()->Advance(0.0F);
+					if (auto* movieView = questItemList->GetMovieView()) {
+						movieView->Advance(0.0F);
+					}
 				}
 			}
 
@@ -384,6 +424,10 @@ namespace CNO
 
 	bool HUDMarkerManager::IsPlayerAllyOfFaction(const RE::TESFaction* a_faction) const
 	{
+		if (!player || !a_faction) {
+			return false;
+		}
+
 		if (player->IsInFaction(a_faction)) 
 		{
 			return true;
@@ -396,8 +440,15 @@ namespace CNO
 				return true;
 			}
 
+			if (!a_visitedFaction) {
+				return false;
+			}
+
 			for (RE::GROUP_REACTION* reactionToFaction : a_visitedFaction->reactions)
 			{
+				if (!reactionToFaction || !reactionToFaction->form) {
+					continue;
+				}
 				auto relatedFaction = reactionToFaction->form->As<RE::TESFaction>();
 				if (relatedFaction == a_faction && reactionToFaction->fightReaction >= RE::FIGHT_REACTION::kAlly)
 				{
@@ -411,6 +462,10 @@ namespace CNO
 
 	bool HUDMarkerManager::IsPlayerOpponentOfFaction(const RE::TESFaction* a_faction) const
 	{
+		if (!player || !a_faction) {
+			return false;
+		}
+
 		return player->VisitFactions([a_faction](RE::TESFaction* a_visitedFaction, std::int8_t a_rank) -> bool
 		{
 			if (a_visitedFaction == a_faction && a_rank < 0)
@@ -418,8 +473,15 @@ namespace CNO
 				return true;
 			}
 
+			if (!a_visitedFaction) {
+				return false;
+			}
+
 			for (RE::GROUP_REACTION* reactionToFaction : a_visitedFaction->reactions)
 			{
+				if (!reactionToFaction || !reactionToFaction->form) {
+					continue;
+				}
 				auto relatedFaction = reactionToFaction->form->As<RE::TESFaction>();
 				if (relatedFaction == a_faction && reactionToFaction->fightReaction == RE::FIGHT_REACTION::kEnemy)
 				{
@@ -433,30 +495,39 @@ namespace CNO
 
 	std::string HUDMarkerManager::GetSideInQuest(RE::QUEST_DATA::Type a_questType) const
 	{
+		if (!player) {
+			return {};
+		}
+
+		// Resolve factions lazily. Constructing this singleton before kDataLoaded must
+		// not permanently cache null pointers for Skyrim/Dawnguard forms.
 		switch (a_questType)
 		{
-		case RE::QUEST_DATA::Type::kCivilWar:
+		case RE::QUEST_DATA::Type::kCivilWar: {
+			const auto* imperialLegionFaction = LookupFaction(0x0002BF9A);
+			const auto* stormCloaksFaction = LookupFaction(0x00028849);
+			const auto* sonsOfSkyrimFaction = LookupFaction(0x0002BF9B);
 			if (IsPlayerAllyOfFaction(sonsOfSkyrimFaction) || IsPlayerAllyOfFaction(stormCloaksFaction) ||
 				IsPlayerOpponentOfFaction(imperialLegionFaction))
 			{
 				return "StormCloaks";
 			}
-			else
-			{
-				return "ImperialLegion";
-			}
-		case RE::QUEST_DATA::Type::kDLC01_Vampire:
+			return "ImperialLegion";
+		}
+		case RE::QUEST_DATA::Type::kDLC01_Vampire: {
+			const auto* dawnGuardFaction = LookupFaction(0x02014217);
+			const auto* vampireFaction = LookupFaction(0x02003376);
 			if (player->HasKeywordString("Vampire") || IsPlayerAllyOfFaction(vampireFaction) ||
 				IsPlayerOpponentOfFaction(dawnGuardFaction))
 			{
 				return "Vampires";
 			}
-			else
-			{
-				return "Dawnguard"; 
-			}
+			return "Dawnguard";
+		}
+		default:
+			break;
 		}
 
-		return { };
+		return {};
 	}
 }

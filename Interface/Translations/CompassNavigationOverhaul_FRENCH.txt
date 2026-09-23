@@ -1,0 +1,58 @@
+$CNO_AngleKeepDetails_Desc	Angle auquel les détails d’un marqueur déjà ciblé restent visibles.
+$CNO_AngleKeepDetails_Title	Angle de maintien des détails
+$CNO_AngleShowDetails_Desc	Angle par rapport au centre de la boussole à partir duquel les détails du marqueur s’affichent.
+$CNO_AngleShowDetails_Title	Angle d’affichage des détails
+$CNO_CompassOffsetX_Desc	Décalage horizontal appliqué à la boussole.
+$CNO_CompassOffsetX_Title	Décalage horizontal
+$CNO_CompassOffsetY_Desc	Décalage vertical appliqué à la boussole.
+$CNO_CompassOffsetY_Title	Décalage vertical
+$CNO_CompassScale_Desc	Échelle de l’élément d’interface de la boussole.
+$CNO_CompassScale_Title	Échelle de la boussole
+$CNO_FocusDelay_Desc	Délai avant l’affichage des détails du marqueur ciblé.
+$CNO_FocusDelay_Title	Délai de ciblage
+$CNO_Header_CompassMarkers	Marqueurs de boussole
+$CNO_Header_CompassPosition	Position et échelle de la boussole
+$CNO_Header_PositionScale	Position et échelle
+$CNO_Header_Timing	Temporisation
+$CNO_Header_Visibility	Visibilité
+$CNO_HideInCombat_Desc	Masquer la liste des quêtes lorsque le joueur est en combat.
+$CNO_HideInCombat_Title	Masquer en combat
+$CNO_JoggingDelay_Desc	Délai avant l’affichage de la liste des quêtes pendant la course.
+$CNO_JoggingDelay_Title	Délai en course
+$CNO_MaxHeight_Desc	Hauteur maximale utilisée par la liste des quêtes.
+$CNO_MaxHeight_Title	Hauteur maximale
+$CNO_Page_Compass	Boussole
+$CNO_Page_QuestList	Liste des quêtes
+$CNO_PositionX_Desc	Position horizontale de la liste des quêtes.
+$CNO_PositionX_Title	Position horizontale
+$CNO_PositionY_Desc	Position verticale de la liste des quêtes.
+$CNO_PositionY_Title	Position verticale
+$CNO_Scale_Desc	Échelle de la liste des quêtes.
+$CNO_Scale_Title	Échelle de la liste des quêtes
+$CNO_ShowEnemyMarkers_Desc	Afficher les marqueurs d’ennemis sur la boussole.
+$CNO_ShowEnemyMarkers_Title	Afficher les marqueurs d’ennemis
+$CNO_ShowEnemyName_Desc	Afficher le nom de l’ennemi sous le marqueur d’ennemi ciblé.
+$CNO_ShowEnemyName_Title	Afficher le nom de l’ennemi
+$CNO_ShowExteriors_Desc	Afficher la liste des quêtes en extérieur.
+$CNO_ShowExteriors_Title	Afficher en extérieur
+$CNO_ShowInteriorMarkers_Desc	Permettre aux marqueurs de lieux pris en charge de rester visibles en intérieur.
+$CNO_ShowInteriorMarkers_Title	Afficher les marqueurs en intérieur
+$CNO_ShowInteriors_Desc	Afficher la liste des quêtes en intérieur.
+$CNO_ShowInteriors_Title	Afficher en intérieur
+$CNO_ShowObjectiveTarget_Desc	Afficher l’objectif de quête ciblé sous la boussole.
+$CNO_ShowObjectiveTarget_Title	Afficher l’objectif comme cible
+$CNO_ShowOtherObjectivesCount_Desc	Afficher combien d’objectifs supplémentaires utilisent le même marqueur.
+$CNO_ShowOtherObjectivesCount_Title	Afficher le nombre d’autres objectifs
+$CNO_ShowUndiscovered_Desc	Afficher les marqueurs de lieux non découverts sur la boussole.
+$CNO_ShowUndiscovered_Title	Afficher les lieux non découverts
+$CNO_SprintingDelay_Desc	Délai avant l’affichage de la liste des quêtes pendant le sprint.
+$CNO_SprintingDelay_Title	Délai en sprint
+$CNO_Title	Compass Navigation Overhaul
+$CNO_UndiscoveredUnknownInfo_Desc	Masquer le nom du lieu jusqu’à sa découverte. La distance et la hauteur restent visibles.
+$CNO_UndiscoveredUnknownInfo_Title	Masquer les noms des lieux non découverts
+$CNO_UndiscoveredUnknownMarker_Desc	Utiliser une icône en point d’interrogation jusqu’à la découverte du lieu.
+$CNO_UndiscoveredUnknownMarker_Title	Utiliser ? pour les lieux non découverts
+$CNO_UseMetric_Desc	Afficher les distances des marqueurs en unités métriques.
+$CNO_UseMetric_Title	Utiliser les unités métriques
+$CNO_WalkingDelay_Desc	Délai avant l’affichage de la liste des quêtes pendant la marche.
+$CNO_WalkingDelay_Title	Délai en marche

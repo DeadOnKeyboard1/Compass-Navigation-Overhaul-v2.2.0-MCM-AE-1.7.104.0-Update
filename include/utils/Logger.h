@@ -1,6 +1,6 @@
 #pragma once
 
-#include "PCH.h"
+#include "pch.h"
 #include <ShlObj.h>
 #undef DispatchMessage
 

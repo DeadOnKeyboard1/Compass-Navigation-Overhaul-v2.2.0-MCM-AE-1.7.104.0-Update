@@ -13,7 +13,7 @@ namespace NND
 			return std::addressof(singleton);
 		}
 
-		const char* GetName(RE::Actor* actor) const;
+		std::string GetName(RE::Actor* actor) const;
 
 		void RequestAPI();
 

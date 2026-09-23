@@ -1,0 +1,58 @@
+$CNO_AngleKeepDetails_Desc	Angolo entro il quale i dettagli di un indicatore già selezionato restano visibili.
+$CNO_AngleKeepDetails_Title	Angolo mantenimento dettagli
+$CNO_AngleShowDetails_Desc	Angolo dal centro della bussola entro il quale iniziano a comparire i dettagli dell’indicatore.
+$CNO_AngleShowDetails_Title	Angolo visualizzazione dettagli
+$CNO_CompassOffsetX_Desc	Spostamento orizzontale applicato alla bussola.
+$CNO_CompassOffsetX_Title	Spostamento orizzontale
+$CNO_CompassOffsetY_Desc	Spostamento verticale applicato alla bussola.
+$CNO_CompassOffsetY_Title	Spostamento verticale
+$CNO_CompassScale_Desc	Scala dell’elemento HUD della bussola.
+$CNO_CompassScale_Title	Scala bussola
+$CNO_FocusDelay_Desc	Ritardo prima che vengano mostrati i dettagli dell’indicatore selezionato.
+$CNO_FocusDelay_Title	Ritardo selezione
+$CNO_Header_CompassMarkers	Indicatori bussola
+$CNO_Header_CompassPosition	Posizione e scala bussola
+$CNO_Header_PositionScale	Posizione e scala
+$CNO_Header_Timing	Tempi
+$CNO_Header_Visibility	Visibilità
+$CNO_HideInCombat_Desc	Nasconde l’elenco missioni mentre il giocatore è in combattimento.
+$CNO_HideInCombat_Title	Nascondi in combattimento
+$CNO_JoggingDelay_Desc	Ritardo prima di mostrare l’elenco missioni mentre si corre.
+$CNO_JoggingDelay_Title	Ritardo corsa
+$CNO_MaxHeight_Desc	Altezza massima usata dall’elenco missioni.
+$CNO_MaxHeight_Title	Altezza massima
+$CNO_Page_Compass	Bussola
+$CNO_Page_QuestList	Elenco missioni
+$CNO_PositionX_Desc	Posizione orizzontale dell’elenco missioni.
+$CNO_PositionX_Title	Posizione orizzontale
+$CNO_PositionY_Desc	Posizione verticale dell’elenco missioni.
+$CNO_PositionY_Title	Posizione verticale
+$CNO_Scale_Desc	Scala dell’elenco missioni.
+$CNO_Scale_Title	Scala elenco missioni
+$CNO_ShowEnemyMarkers_Desc	Mostra gli indicatori dei nemici sulla bussola.
+$CNO_ShowEnemyMarkers_Title	Mostra indicatori nemici
+$CNO_ShowEnemyName_Desc	Mostra il nome del nemico sotto l’indicatore del nemico selezionato.
+$CNO_ShowEnemyName_Title	Mostra nome nemico
+$CNO_ShowExteriors_Desc	Mostra l’elenco missioni all’esterno.
+$CNO_ShowExteriors_Title	Mostra all’esterno
+$CNO_ShowInteriorMarkers_Desc	Consente agli indicatori di luogo supportati di restare visibili negli interni.
+$CNO_ShowInteriorMarkers_Title	Mostra indicatori negli interni
+$CNO_ShowInteriors_Desc	Mostra l’elenco missioni negli interni.
+$CNO_ShowInteriors_Title	Mostra negli interni
+$CNO_ShowObjectiveTarget_Desc	Mostra l’obiettivo di missione selezionato sotto la bussola.
+$CNO_ShowObjectiveTarget_Title	Mostra obiettivo come bersaglio
+$CNO_ShowOtherObjectivesCount_Desc	Mostra quanti obiettivi aggiuntivi usano lo stesso indicatore.
+$CNO_ShowOtherObjectivesCount_Title	Mostra numero altri obiettivi
+$CNO_ShowUndiscovered_Desc	Mostra sulla bussola gli indicatori dei luoghi non scoperti.
+$CNO_ShowUndiscovered_Title	Mostra luoghi non scoperti
+$CNO_SprintingDelay_Desc	Ritardo prima di mostrare l’elenco missioni durante lo sprint.
+$CNO_SprintingDelay_Title	Ritardo sprint
+$CNO_Title	Compass Navigation Overhaul
+$CNO_UndiscoveredUnknownInfo_Desc	Nasconde il nome del luogo finché non viene scoperto. Distanza e altezza restano visibili.
+$CNO_UndiscoveredUnknownInfo_Title	Nascondi nomi luoghi non scoperti
+$CNO_UndiscoveredUnknownMarker_Desc	Usa un’icona con punto interrogativo finché il luogo non viene scoperto.
+$CNO_UndiscoveredUnknownMarker_Title	Usa ? per luoghi non scoperti
+$CNO_UseMetric_Desc	Mostra le distanze degli indicatori usando unità metriche.
+$CNO_UseMetric_Title	Usa unità metriche
+$CNO_WalkingDelay_Desc	Ritardo prima di mostrare l’elenco missioni mentre si cammina.
+$CNO_WalkingDelay_Title	Ritardo camminata

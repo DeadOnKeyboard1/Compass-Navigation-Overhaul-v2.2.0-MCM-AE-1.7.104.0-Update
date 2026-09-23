@@ -65,39 +65,36 @@ protected:
 };
 
 template <logger::level logLevel = logger::level::debug>
-class GFxArrayLogger : public RE::GFxValue::ArrayVisitor
+class GFxArrayLogger
 {
 public:
-
 	void LogElementsOf(const RE::GFxValue& a_value)
 	{
-		logger::at_level(logLevel, "{}: {}", a_value.ToString(), GFxValueTypeToString(a_value.GetType()));
+		logger::at_level(logLevel, "{}: {}", a_value.ToString().c_str(), GFxValueTypeToString(a_value.GetType()));
 		if (a_value.IsArray())
 		{
 			logger::at_level(logLevel, "{}", "{");
-			a_value.VisitElements(this);
+			const auto count = a_value.GetArraySize();
+			for (std::uint32_t i = 0; i < count; ++i) {
+				RE::GFxValue element;
+				if (a_value.GetElement(i, &element)) {
+					logger::at_level(logLevel, "\t[{}] {}: {}", i, element.ToString().c_str(), GFxValueTypeToString(element.GetType()));
+				}
+			}
 			logger::at_level(logLevel, "{}", "}");
 		}
 		logger::flush();
 	}
+
 	void LogElementsOf(RE::GFxMovieView* a_view, const char* a_pathToMember)
 	{
 		if (a_view)
 		{
 			RE::GFxValue value;
-			if (a_view->GetVariable(&value, a_pathToMember)) 
+			if (a_view->GetVariable(&value, a_pathToMember))
 			{
 				LogElementsOf(value);
 			}
 		}
-	}
-
-protected:
-
-	using ValueType = RE::GFxValue::ValueType;
-
-	void Visit(std::uint32_t a_idx, const RE::GFxValue& a_value) override
-	{
-		logger::at_level(logLevel, "\t[{}] {}: {}", a_idx, a_value.ToString().c_str(), GFxValueTypeToString(a_value.GetType()));
 	}
 };

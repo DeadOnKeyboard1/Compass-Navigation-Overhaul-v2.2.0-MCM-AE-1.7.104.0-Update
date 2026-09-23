@@ -28,38 +28,41 @@ namespace util
 
 	inline float GetAngleBetween(const RE::PlayerCamera* a_playerCamera, const RE::TESObjectREFR* a_markerRef)
 	{
+		if (!a_playerCamera || !a_markerRef) {
+			return 0.0F;
+		}
+
 		RE::PlayerCharacter* player = RE::PlayerCharacter::GetSingleton();
-		RE::NiPoint3 playerPos = player->GetPosition();
+		if (!player) {
+			return 0.0F;
+		}
 
-		// Skyrim used this instead, but less precise (don't know why)
-		//RE::NiPoint3 markerPos = a_markerRef->GetLookingAtLocation();
+		const RE::NiPoint3 playerPos = player->GetPosition();
+		const RE::NiPoint3 markerPos = a_markerRef->GetPosition();
 
-		RE::NiPoint3 markerPos = a_markerRef->GetPosition();
-
-		float playerCameraYawAngle = a_playerCamera->yaw;
-
-		float compassAngle = playerCameraYawAngle;
-
-		if (RE::TESObjectCELL* parentCell = player->GetParentCell())
-		{
+		float compassAngle = a_playerCamera->yaw;
+		if (RE::TESObjectCELL* parentCell = player->GetParentCell()) {
 			compassAngle += parentCell->GetNorthRotation();
 		}
 
-		float headingAngle = playerPos.GetHorizontalAngleTo(markerPos);
+		const float diffX = markerPos.x - playerPos.x;
+		const float diffY = markerPos.y - playerPos.y;
+		float headingAngle = std::atan2(diffX, diffY);
 
-		CropAngleRange(playerCameraYawAngle);
 		CropAngleRange(compassAngle);
 		CropAngleRange(headingAngle);
 
-		float angle = headingAngle - playerCameraYawAngle;
-
+		float angle = headingAngle - compassAngle;
 		CropAngleRange(angle);
-
 		return angle;
 	}
 
 	inline RE::NiPoint3 GetRealPosition(const RE::TESObjectREFR* a_objRef)
 	{
+		if (!a_objRef) {
+			return RE::NiPoint3::Zero();
+		}
+
 		RE::NiPoint3 position = a_objRef->GetPosition();
 
 		if (const RE::TESWorldSpace* worldSpace = a_objRef->GetWorldspace())
@@ -76,6 +79,10 @@ namespace util
 
 	inline float GetDistanceBetween(const RE::PlayerCharacter* a_player, const RE::TESObjectREFR* a_marker)
 	{
+		if (!a_player || !a_marker) {
+			return 0.0F;
+		}
+
 		RE::NiPoint3 playerPos = GetRealPosition(a_player);
 		RE::NiPoint3 markerPos = GetRealPosition(a_marker);
 
@@ -84,6 +91,10 @@ namespace util
 
 	inline float GetHeightDifferenceBetween(const RE::PlayerCharacter* a_player, const RE::TESObjectREFR* a_marker)
 	{
+		if (!a_player || !a_marker) {
+			return 0.0F;
+		}
+
 		RE::NiPoint3 playerPos = GetRealPosition(a_player);
 		RE::NiPoint3 markerPos = GetRealPosition(a_marker);
 

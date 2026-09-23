@@ -28,26 +28,10 @@
             }
         },
         {
-            "name": "commonlibsse-all",
-            "hidden": true,
-            "environment": {
-                "RUNTIME_DISABLE_FLAGS": "",
-                "COMMONLIBSSE_COMPILER": "/showIncludes"
-            }
-        },
-        {
             "name": "commonlibsse-se-only",
             "hidden": true,
             "environment": {
-                "RUNTIME_DISABLE_FLAGS": "-UENABLE_SKYRIM_VR",
-                "COMMONLIBSSE_COMPILER": ""
-            }
-        },
-        {
-            "name": "commonlibsse-vr-only",
-            "hidden": true,
-            "environment": {
-                "RUNTIME_DISABLE_FLAGS": "-UENABLE_SKYRIM_SE -UENABLE_SKYRIM_AE",
+                "RUNTIME_DISABLE_FLAGS": "/UENABLE_SKYRIM_VR",
                 "COMMONLIBSSE_COMPILER": ""
             }
         },
@@ -82,24 +66,6 @@
             }
         },
         {
-            "name": "build-debug-all",
-            "inherits": [
-                "build-debug",
-                "commonlibsse-all"
-            ],
-            "displayName": "Debug",
-            "binaryDir": "${sourceDir}/build/debug"
-        },
-        {
-            "name": "build-relwithdebinfo-all",
-            "inherits": [
-                "build-relwithdebinfo",
-                "commonlibsse-all"
-            ],
-            "displayName": "RelWithDebInfo",
-            "binaryDir": "${sourceDir}/build/relwithdebinfo"
-        },
-        {
             "name": "build-debug-se-only",
             "inherits": [
                 "build-debug",
@@ -116,56 +82,18 @@
             ],
             "displayName": "RelWithDebInfo (SE-AE only)",
             "binaryDir": "${sourceDir}/build/relwithdebinfo-se-only"
-        },
-        {
-            "name": "build-debug-vr-only",
-            "inherits": [
-                "build-debug",
-                "commonlibsse-vr-only"
-            ],
-            "displayName": "Debug (VR only)",
-            "binaryDir": "${sourceDir}/build/debug-vr-only"
-        },
-        {
-            "name": "build-relwithdebinfo-vr-only",
-            "inherits": [
-                "build-relwithdebinfo",
-                "commonlibsse-vr-only"
-            ],
-            "displayName": "RelWithDebInfo (VR only)",
-            "binaryDir": "${sourceDir}/build/relwithdebinfo-vr-only"
         }
     ],
     "buildPresets": [
         {
             "name": "debug-se-only",
-            "displayName": "Debug (SE only)",
+            "displayName": "Debug (SE/AE only)",
             "configurePreset": "build-debug-se-only"
         },
         {
             "name": "relwithdebinfo-se-only",
-            "displayName": "RelWithDebInfo (SE only)",
+            "displayName": "RelWithDebInfo (SE/AE only)",
             "configurePreset": "build-relwithdebinfo-se-only"
-        },
-        {
-            "name": "debug-vr-only",
-            "displayName": "Debug (VR only)",
-            "configurePreset": "build-debug-vr-only"
-        },
-        {
-            "name": "relwithdebinfo-vr-only",
-            "displayName": "RelWithDebInfo (VR only)",
-            "configurePreset": "build-relwithdebinfo-vr-only"
-        },
-        {
-            "name": "debug-all",
-            "displayName": "Debug (All)",
-            "configurePreset": "build-debug-all"
-        },
-        {
-            "name": "relwithdebinfo-all",
-            "displayName": "RelWithDebInfo (All)",
-            "configurePreset": "build-relwithdebinfo-all"
         }
     ]
 }

@@ -1,30 +1,28 @@
 #pragma once
 
-class Test : IUI::GFxDisplayObject
+class Test : public IUI::GFxDisplayObject
 {
 public:
 	static constexpr inline std::string_view path = "_level0.Test";
 
-	static void InitSingleton(const GFxDisplayObject& a_compassShoutMeterHolder)
+	static void InitSingleton(const IUI::GFxDisplayObject& a_test)
 	{
-		if (!singleton) 
-		{
-			static Test singletonInstance{ a_compassShoutMeterHolder };
+		if (!singleton) {
+			static Test singletonInstance{ a_test };
 			singleton = &singletonInstance;
+		} else {
+			*static_cast<IUI::GFxDisplayObject*>(singleton) = a_test;
 		}
 	}
 
-	static Test* GetSingleton() { return singleton; }
-
-	GFxDisplayObject textField0 = GetMember("TextField0");
-	GFxDisplayObject textField1 = GetMember("TextField1");
-	GFxDisplayObject textField2 = GetMember("TextField2");
+	static void InvalidateSingleton()
+	{
+		if (singleton) {
+			singleton->Invalidate();
+		}
+	}
 
 private:
-
-	Test(const GFxDisplayObject& a_test) :
-		GFxDisplayObject{ a_test }
-	{}
-
+	explicit Test(const IUI::GFxDisplayObject& a_test) : IUI::GFxDisplayObject{ a_test } {}
 	static inline Test* singleton = nullptr;
 };

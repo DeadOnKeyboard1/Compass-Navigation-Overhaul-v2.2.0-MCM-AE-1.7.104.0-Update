@@ -36,16 +36,29 @@ source_group(
 ## Configure target DLL
 ########################################################################################################################
 
+# CommonLibSSE 7.5.4 exports Microsoft::DirectXTK in its public link interface,
+# while CNO directly includes Xbyak for the compatibility trampolines. Resolve
+# both explicitly so a clean vcpkg build does not depend on accidental
+# transitive include/target visibility.
+find_package(directxtk CONFIG REQUIRED)
 find_package(CommonLibSSE CONFIG REQUIRED)
 find_package(spdlog REQUIRED CONFIG)
+find_path(XBYAK_INCLUDE_DIRS NAMES xbyak/xbyak.h REQUIRED)
 
-add_commonlibsse_plugin(${PROJECT_NAME} SOURCES ${headers} ${sources})
+add_commonlibsse_plugin(
+	${PROJECT_NAME}
+	STRUCT_DEPENDENT
+	COMPATIBLE_RUNTIMES 1.7.104.0
+	MINIMUM_SKSE_VERSION 2.3.1
+	SOURCES ${headers} ${sources}
+)
 add_library("${PROJECT_NAME}::${PROJECT_NAME}" ALIAS "${PROJECT_NAME}")
 
 target_include_directories(
 	${PROJECT_NAME}
-	PRIVATE
+	BEFORE PRIVATE
 		${CMAKE_CURRENT_SOURCE_DIR}/include
+		${XBYAK_INCLUDE_DIRS}
 )
 
 target_link_libraries(
@@ -65,7 +78,6 @@ target_compile_options(
 	${PROJECT_NAME}
 	PRIVATE
 		/Zi
-		/UENABLE_SKYRIM_VR
 )
 
 if (MSVC)

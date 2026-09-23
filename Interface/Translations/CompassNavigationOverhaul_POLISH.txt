@@ -1,0 +1,58 @@
+$CNO_AngleKeepDetails_Desc	Kąt, przy którym szczegóły już wybranego znacznika pozostają widoczne.
+$CNO_AngleKeepDetails_Title	Kąt utrzymania szczegółów
+$CNO_AngleShowDetails_Desc	Kąt od środka kompasu, przy którym zaczynają być wyświetlane szczegóły znacznika.
+$CNO_AngleShowDetails_Title	Kąt wyświetlania szczegółów
+$CNO_CompassOffsetX_Desc	Poziome przesunięcie kompasu.
+$CNO_CompassOffsetX_Title	Przesunięcie poziome
+$CNO_CompassOffsetY_Desc	Pionowe przesunięcie kompasu.
+$CNO_CompassOffsetY_Title	Przesunięcie pionowe
+$CNO_CompassScale_Desc	Skala elementu interfejsu kompasu.
+$CNO_CompassScale_Title	Skala kompasu
+$CNO_FocusDelay_Desc	Opóźnienie przed wyświetleniem szczegółów wybranego znacznika.
+$CNO_FocusDelay_Title	Opóźnienie wyboru
+$CNO_Header_CompassMarkers	Znaczniki kompasu
+$CNO_Header_CompassPosition	Pozycja i skala kompasu
+$CNO_Header_PositionScale	Pozycja i skala
+$CNO_Header_Timing	Czas
+$CNO_Header_Visibility	Widoczność
+$CNO_HideInCombat_Desc	Ukrywa listę zadań, gdy gracz jest w walce.
+$CNO_HideInCombat_Title	Ukryj w walce
+$CNO_JoggingDelay_Desc	Opóźnienie przed pokazaniem listy zadań podczas biegu.
+$CNO_JoggingDelay_Title	Opóźnienie biegu
+$CNO_MaxHeight_Desc	Maksymalna wysokość używana przez listę zadań.
+$CNO_MaxHeight_Title	Maksymalna wysokość
+$CNO_Page_Compass	Kompas
+$CNO_Page_QuestList	Lista zadań
+$CNO_PositionX_Desc	Pozioma pozycja listy zadań.
+$CNO_PositionX_Title	Pozycja pozioma
+$CNO_PositionY_Desc	Pionowa pozycja listy zadań.
+$CNO_PositionY_Title	Pozycja pionowa
+$CNO_Scale_Desc	Skala listy zadań.
+$CNO_Scale_Title	Skala listy zadań
+$CNO_ShowEnemyMarkers_Desc	Wyświetla znaczniki wrogów na kompasie.
+$CNO_ShowEnemyMarkers_Title	Pokaż znaczniki wrogów
+$CNO_ShowEnemyName_Desc	Wyświetla nazwę wroga pod wybranym znacznikiem wroga.
+$CNO_ShowEnemyName_Title	Pokaż nazwę wroga
+$CNO_ShowExteriors_Desc	Wyświetla listę zadań na zewnątrz.
+$CNO_ShowExteriors_Title	Pokaż na zewnątrz
+$CNO_ShowInteriorMarkers_Desc	Pozwala obsługiwanym znacznikom lokacji pozostać widocznym we wnętrzach.
+$CNO_ShowInteriorMarkers_Title	Pokaż znaczniki we wnętrzach
+$CNO_ShowInteriors_Desc	Wyświetla listę zadań we wnętrzach.
+$CNO_ShowInteriors_Title	Pokaż we wnętrzach
+$CNO_ShowObjectiveTarget_Desc	Wyświetla wybrany cel zadania pod kompasem.
+$CNO_ShowObjectiveTarget_Title	Pokaż cel zadania
+$CNO_ShowOtherObjectivesCount_Desc	Wyświetla liczbę dodatkowych celów korzystających z tego samego znacznika.
+$CNO_ShowOtherObjectivesCount_Title	Pokaż liczbę innych celów
+$CNO_ShowUndiscovered_Desc	Wyświetla na kompasie znaczniki nieodkrytych lokacji.
+$CNO_ShowUndiscovered_Title	Pokaż nieodkryte lokacje
+$CNO_SprintingDelay_Desc	Opóźnienie przed pokazaniem listy zadań podczas sprintu.
+$CNO_SprintingDelay_Title	Opóźnienie sprintu
+$CNO_Title	Compass Navigation Overhaul
+$CNO_UndiscoveredUnknownInfo_Desc	Ukrywa nazwę lokacji do czasu jej odkrycia. Odległość i wysokość pozostają widoczne.
+$CNO_UndiscoveredUnknownInfo_Title	Ukryj nazwy nieodkrytych lokacji
+$CNO_UndiscoveredUnknownMarker_Desc	Używa ikony znaku zapytania do czasu odkrycia lokacji.
+$CNO_UndiscoveredUnknownMarker_Title	Użyj ? dla nieodkrytych lokacji
+$CNO_UseMetric_Desc	Wyświetla odległości znaczników w jednostkach metrycznych.
+$CNO_UseMetric_Title	Używaj jednostek metrycznych
+$CNO_WalkingDelay_Desc	Opóźnienie przed pokazaniem listy zadań podczas chodzenia.
+$CNO_WalkingDelay_Title	Opóźnienie chodu

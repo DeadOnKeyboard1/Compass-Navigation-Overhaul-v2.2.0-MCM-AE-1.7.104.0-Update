@@ -1,21 +1,28 @@
 {
-	"name": "commonlibsse-ng",
-	"version-string": "4.0.0",
-	"port-version": 1,
-	"description": "A reverse engineered resource for developing SKSE plugins, supporting portable plugins that work across AE, SE, and VR.",
-	"homepage": "https://github.com/alandtse/CommonlibVR",
-	"license": "MIT",
-	"supports": "windows & x64",
-	"dependencies": [
-		{
-			"name": "vcpkg-cmake-config",
-			"host": true
-		},
-		"directxmath",
-		"directxtk",
-		"fmt",
-		"rapidcsv",
-		"spdlog",
-		"xbyak"
-	]
+    "name": "commonlibsse-ng",
+    "version-semver": "7.5.4",
+    "port-version": 0,
+    "description": "CommonLibSSE-NG pinned for the Compass Navigation Overhaul Skyrim 1.7.104.0 build.",
+    "homepage": "https://github.com/alandtse/CommonLibSSE-NG",
+    "license": "GPL-3.0-or-later",
+    "supports": "windows & x64",
+    "dependencies": [
+        {
+            "name": "vcpkg-cmake",
+            "host": true
+        },
+        {
+            "name": "vcpkg-cmake-config",
+            "host": true
+        },
+        "directxmath",
+        "directxtk",
+        "fmt",
+        "nlohmann-json",
+        "rapidcsv",
+        "simpleini",
+        "spdlog",
+        "toml11",
+        "xbyak"
+    ]
 }

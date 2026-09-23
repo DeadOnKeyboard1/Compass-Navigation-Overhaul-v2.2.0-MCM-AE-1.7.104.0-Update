@@ -1,55 +1,13 @@
 #include "Settings.h"
 
 #include <filesystem>
-#include "utils/INISettingCollection.h"
+#include "utils/Logger.h"
 
 namespace settings
 {
-	using namespace utils;
 
 	static std::string s_iniFileName = "CompassNavigationOverhaul.ini";
 
-	void ApplySettingsFromCollection(INISettingCollection* iniSettingCollection)
-	{
-		{
-			using namespace debug;
-			logLevel = static_cast<logger::level>(iniSettingCollection->GetSetting<std::uint32_t>("uLogLevel:Debug"));
-		}
-		{
-			using namespace display;
-			useMetricUnits = iniSettingCollection->GetSetting<bool>("bUseMetricUnits:Display");
-			showUndiscoveredLocationMarkers = iniSettingCollection->GetSetting<bool>("bShowUndiscoveredLocationMarkers:Display");
-			undiscoveredMeansUnknownMarkers = iniSettingCollection->GetSetting<bool>("bUndiscoveredMeansUnknownMarkers:Display");
-			undiscoveredMeansUnknownInfo = iniSettingCollection->GetSetting<bool>("bUndiscoveredMeansUnknownInfo:Display");
-			showEnemyMarkers = iniSettingCollection->GetSetting<bool>("bShowEnemyMarkers:Display");
-			showEnemyNameUnderMarker = iniSettingCollection->GetSetting<bool>("bShowEnemyNameUnderMarker:Display");
-			showObjectiveAsTarget = iniSettingCollection->GetSetting<bool>("bShowObjectiveAsTarget:Display");
-			showOtherObjectivesCount = iniSettingCollection->GetSetting<bool>("bShowOtherObjectivesCount:Display");
-			showInteriorMarkers = iniSettingCollection->GetSetting<bool>("bShowInteriorMarkers:Display");
-			angleToShowMarkerDetails = iniSettingCollection->GetSetting<float>("fAngleToShowMarkerDetails:Display");
-			angleToKeepMarkerDetailsShown = iniSettingCollection->GetSetting<float>("fAngleToKeepMarkerDetailsShown:Display");
-			focusingDelayToShow = iniSettingCollection->GetSetting<float>("fFocusingDelayToShow:Display");
-		}
-		{
-			using namespace questlist;
-			positionX = iniSettingCollection->GetSetting<float>("fPositionX:QuestList");
-			positionY = iniSettingCollection->GetSetting<float>("fPositionY:QuestList");
-			scale = iniSettingCollection->GetSetting<float>("fScale:QuestList");
-			maxHeight = iniSettingCollection->GetSetting<float>("fMaxHeight:QuestList");
-			showInExteriors = iniSettingCollection->GetSetting<bool>("bShowInExteriors:QuestList");
-			showInInteriors = iniSettingCollection->GetSetting<bool>("bShowInInteriors:QuestList");
-			walkingDelayToShow = iniSettingCollection->GetSetting<float>("fWalkingDelayToShow:QuestList");
-			joggingDelayToShow = iniSettingCollection->GetSetting<float>("fJoggingDelayToShow:QuestList");
-			sprintingDelayToShow = iniSettingCollection->GetSetting<float>("fSprintingDelayToShow:QuestList");
-			hideInCombat = iniSettingCollection->GetSetting<bool>("bHideInCombat:QuestList");
-		}
-		{
-			using namespace compass;
-			offsetX = iniSettingCollection->GetSetting<float>("fOffsetX:Compass");
-			offsetY = iniSettingCollection->GetSetting<float>("fOffsetY:Compass");
-			scale = iniSettingCollection->GetSetting<float>("fScale:Compass");
-		}
-	}
 
 	static std::filesystem::path ResolvePath(const std::string& relPath)
 	{
@@ -167,34 +125,32 @@ namespace settings
 
 	void Reload()
 	{
-		INISettingCollection* iniSettingCollection = INISettingCollection::GetSingleton();
-
 		std::filesystem::path pluginIniPath = ResolvePath("Data/SKSE/Plugins/" + s_iniFileName);
 		std::filesystem::path mcmConfigIniPath = ResolvePath("Data/MCM/Config/CompassNavigationOverhaul/settings.ini");
 		std::filesystem::path mcmSettingsIniPath = ResolvePath("Data/MCM/Settings/CompassNavigationOverhaul.ini");
 
-		std::error_code ec;
-		if (std::filesystem::exists(pluginIniPath, ec))
-		{
-			iniSettingCollection->ReadFromPath(pluginIniPath);
-		}
-
-		if (std::filesystem::exists(mcmConfigIniPath, ec))
-		{
-			iniSettingCollection->ReadFromPath(mcmConfigIniPath);
-		}
-
-		if (std::filesystem::exists(mcmSettingsIniPath, ec))
-		{
-			iniSettingCollection->ReadFromPath(mcmSettingsIniPath);
-		}
-
-		ApplySettingsFromCollection(iniSettingCollection);
-
-		// Direct parser as bulletproof guarantee against BOM or Skyrim OpenHandle issues:
+		// Parse in increasing priority. MCM's per-user settings override the shipped
+		// plugin defaults without touching Skyrim's internal INI/VTable machinery.
 		ParseIniDirect(pluginIniPath);
 		ParseIniDirect(mcmConfigIniPath);
 		ParseIniDirect(mcmSettingsIniPath);
+
+		// Sanitize values that are consumed directly by Scaleform/math code.
+		display::angleToShowMarkerDetails = std::clamp(display::angleToShowMarkerDetails, 0.0F, 180.0F);
+		display::angleToKeepMarkerDetailsShown = std::clamp(display::angleToKeepMarkerDetailsShown, 0.0F, 180.0F);
+		display::focusingDelayToShow = std::max(display::focusingDelayToShow, 0.0F);
+		questlist::scale = std::max(questlist::scale, 1.0F);
+		questlist::maxHeight = std::max(questlist::maxHeight, 0.01F);
+		questlist::walkingDelayToShow = std::max(questlist::walkingDelayToShow, 0.0F);
+		questlist::joggingDelayToShow = std::max(questlist::joggingDelayToShow, 0.0F);
+		questlist::sprintingDelayToShow = std::max(questlist::sprintingDelayToShow, 0.0F);
+		compass::scale = std::max(compass::scale, 1.0F);
+
+		const auto rawLogLevel = static_cast<int>(debug::logLevel);
+		if (rawLogLevel < static_cast<int>(logger::level::trace) || rawLogLevel > static_cast<int>(logger::level::off)) {
+			debug::logLevel = logger::level::info;
+		}
+		logger::set_level(debug::logLevel, debug::logLevel);
 
 		logger::info("Settings active: QuestList(X={:.3f}, Y={:.3f}, Scale={:.1f}%, MaxH={:.2f}), Compass(OffX={:.1f}, OffY={:.1f}, Scale={:.1f}%)",
 			questlist::positionX, questlist::positionY, questlist::scale, questlist::maxHeight,
@@ -204,59 +160,6 @@ namespace settings
 	void Init(const std::string& a_iniFileName)
 	{
 		s_iniFileName = a_iniFileName;
-		INISettingCollection* iniSettingCollection = INISettingCollection::GetSingleton();
-
-		{
-			using namespace debug;
-			iniSettingCollection->AddSettings
-			(
-				MakeSetting("uLogLevel:Debug", static_cast<std::uint32_t>(logLevel))
-			);
-		}
-		{
-			using namespace display;
-			iniSettingCollection->AddSettings
-			(
-				MakeSetting("bUseMetricUnits:Display", useMetricUnits),
-				MakeSetting("bShowUndiscoveredLocationMarkers:Display", showUndiscoveredLocationMarkers),
-				MakeSetting("bUndiscoveredMeansUnknownMarkers:Display", undiscoveredMeansUnknownMarkers),
-				MakeSetting("bUndiscoveredMeansUnknownInfo:Display", undiscoveredMeansUnknownInfo),
-				MakeSetting("bShowEnemyMarkers:Display", showEnemyMarkers),
-				MakeSetting("bShowEnemyNameUnderMarker:Display", showEnemyNameUnderMarker),
-				MakeSetting("bShowObjectiveAsTarget:Display", showObjectiveAsTarget),
-				MakeSetting("bShowOtherObjectivesCount:Display", showOtherObjectivesCount),
-				MakeSetting("bShowInteriorMarkers:Display", showInteriorMarkers),
-				MakeSetting("fAngleToShowMarkerDetails:Display", angleToShowMarkerDetails),
-				MakeSetting("fAngleToKeepMarkerDetailsShown:Display", angleToKeepMarkerDetailsShown),
-				MakeSetting("fFocusingDelayToShow:Display", focusingDelayToShow)
-			);
-		}
-		{
-			using namespace questlist;
-			iniSettingCollection->AddSettings
-			(
-				MakeSetting("fPositionX:QuestList", positionX),
-				MakeSetting("fPositionY:QuestList", positionY),
-				MakeSetting("fScale:QuestList", scale),
-				MakeSetting("fMaxHeight:QuestList", maxHeight),
-				MakeSetting("bShowInExteriors:QuestList", showInExteriors),
-				MakeSetting("bShowInInteriors:QuestList", showInInteriors),
-				MakeSetting("fWalkingDelayToShow:QuestList", walkingDelayToShow),
-				MakeSetting("fJoggingDelayToShow:QuestList", joggingDelayToShow),
-				MakeSetting("fSprintingDelayToShow:QuestList", sprintingDelayToShow),
-				MakeSetting("bHideInCombat:QuestList", hideInCombat)
-			);
-		}
-		{
-			using namespace compass;
-			iniSettingCollection->AddSettings
-			(
-				MakeSetting("fOffsetX:Compass", offsetX),
-				MakeSetting("fOffsetY:Compass", offsetY),
-				MakeSetting("fScale:Compass", scale)
-			);
-		}
-
 		Reload();
 	}
 }

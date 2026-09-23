@@ -1,0 +1,58 @@
+$CNO_AngleKeepDetails_Desc	Угол, при котором сведения об уже выбранном маркере остаются видимыми.
+$CNO_AngleKeepDetails_Title	Угол сохранения сведений
+$CNO_AngleShowDetails_Desc	Угол от центра компаса, при котором начинают отображаться сведения о маркере.
+$CNO_AngleShowDetails_Title	Угол показа сведений
+$CNO_CompassOffsetX_Desc	Горизонтальное смещение компаса.
+$CNO_CompassOffsetX_Title	Горизонтальное смещение
+$CNO_CompassOffsetY_Desc	Вертикальное смещение компаса.
+$CNO_CompassOffsetY_Title	Вертикальное смещение
+$CNO_CompassScale_Desc	Масштаб элемента интерфейса компаса.
+$CNO_CompassScale_Title	Масштаб компаса
+$CNO_FocusDelay_Desc	Задержка перед показом сведений о выбранном маркере.
+$CNO_FocusDelay_Title	Задержка фокуса
+$CNO_Header_CompassMarkers	Маркеры компаса
+$CNO_Header_CompassPosition	Положение и масштаб компаса
+$CNO_Header_PositionScale	Положение и масштаб
+$CNO_Header_Timing	Задержки
+$CNO_Header_Visibility	Видимость
+$CNO_HideInCombat_Desc	Скрывать список заданий, пока игрок находится в бою.
+$CNO_HideInCombat_Title	Скрывать в бою
+$CNO_JoggingDelay_Desc	Задержка перед показом списка заданий во время бега.
+$CNO_JoggingDelay_Title	Задержка при беге
+$CNO_MaxHeight_Desc	Максимальная высота списка заданий.
+$CNO_MaxHeight_Title	Максимальная высота
+$CNO_Page_Compass	Компас
+$CNO_Page_QuestList	Список заданий
+$CNO_PositionX_Desc	Горизонтальное положение списка заданий.
+$CNO_PositionX_Title	Горизонтальное положение
+$CNO_PositionY_Desc	Вертикальное положение списка заданий.
+$CNO_PositionY_Title	Вертикальное положение
+$CNO_Scale_Desc	Масштаб списка заданий.
+$CNO_Scale_Title	Масштаб списка заданий
+$CNO_ShowEnemyMarkers_Desc	Показывать маркеры врагов на компасе.
+$CNO_ShowEnemyMarkers_Title	Показывать маркеры врагов
+$CNO_ShowEnemyName_Desc	Показывать имя врага под выбранным маркером врага.
+$CNO_ShowEnemyName_Title	Показывать имя врага
+$CNO_ShowExteriors_Desc	Показывать список заданий на открытой местности.
+$CNO_ShowExteriors_Title	Показывать снаружи
+$CNO_ShowInteriorMarkers_Desc	Позволять поддерживаемым маркерам локаций оставаться видимыми в помещениях.
+$CNO_ShowInteriorMarkers_Title	Показывать маркеры в помещениях
+$CNO_ShowInteriors_Desc	Показывать список заданий в помещениях.
+$CNO_ShowInteriors_Title	Показывать в помещениях
+$CNO_ShowObjectiveTarget_Desc	Показывать выбранную цель задания под компасом.
+$CNO_ShowObjectiveTarget_Title	Показывать цель задания
+$CNO_ShowOtherObjectivesCount_Desc	Показывать количество дополнительных целей, использующих тот же маркер.
+$CNO_ShowOtherObjectivesCount_Title	Показывать число других целей
+$CNO_ShowUndiscovered_Desc	Показывать на компасе маркеры неоткрытых локаций.
+$CNO_ShowUndiscovered_Title	Показывать неоткрытые локации
+$CNO_SprintingDelay_Desc	Задержка перед показом списка заданий во время спринта.
+$CNO_SprintingDelay_Title	Задержка при спринте
+$CNO_Title	Compass Navigation Overhaul
+$CNO_UndiscoveredUnknownInfo_Desc	Скрывать название локации до её открытия. Расстояние и высота остаются видимыми.
+$CNO_UndiscoveredUnknownInfo_Title	Скрывать названия неоткрытых локаций
+$CNO_UndiscoveredUnknownMarker_Desc	Использовать значок вопроса, пока локация не будет открыта.
+$CNO_UndiscoveredUnknownMarker_Title	Использовать ? для неоткрытых локаций
+$CNO_UseMetric_Desc	Показывать расстояния до маркеров в метрических единицах.
+$CNO_UseMetric_Title	Метрические единицы
+$CNO_WalkingDelay_Desc	Задержка перед показом списка заданий во время ходьбы.
+$CNO_WalkingDelay_Title	Задержка при ходьбе

@@ -4,6 +4,7 @@
 #include "IUI/GFxDisplayObject.h"
 
 #include "Settings.h"
+#include "utils/QuestText.h"
 
 struct QuestItem
 {
@@ -30,18 +31,31 @@ public:
 
 	static void InitSingleton(const GFxDisplayObject& a_questItemList)
 	{
-		if (!singleton)
-		{
+		if (!singleton) {
 			static QuestItemList singletonInstance{ a_questItemList };
 			singleton = &singletonInstance;
+		} else {
+			*static_cast<GFxDisplayObject*>(singleton) = a_questItemList;
+			singleton->hiddenByForce = false;
+			singleton->InitializeInstance();
 		}
 	}
 
 	static QuestItemList* GetSingleton() { return singleton; }
 
-	bool CanBeDisplayed(RE::TESObjectCELL* a_cell, bool a_isPlayerWeaponDrawn) const
+	static void InvalidateSingleton()
 	{
-		if (!a_isPlayerWeaponDrawn || !settings::questlist::hideInCombat)
+		if (singleton) {
+			singleton->Invalidate();
+			singleton->hiddenByForce = false;
+		}
+	}
+
+	[[nodiscard]] bool IsReady() const noexcept { return IsUsable(); }
+
+	bool CanBeDisplayed(RE::TESObjectCELL* a_cell, bool a_isPlayerInCombat) const
+	{
+		if (!a_isPlayerInCombat || !settings::questlist::hideInCombat)
 		{
 			if (a_cell)
 			{
@@ -67,14 +81,22 @@ public:
 
 	void AddQuest(const QuestItem& a_questItem)
 	{
-		GFxArray gfxQuestObjectives{ GetMovieView() };
+		auto* movieView = GetMovieView();
+		if (!IsReady() || !movieView) {
+			return;
+		}
+
+		GFxArray gfxQuestObjectives{ movieView };
+		if (!gfxQuestObjectives.IsUsable()) {
+			return;
+		}
 		std::vector<std::string> addedTexts;
 
 		for (const RE::BGSInstancedQuestObjective* questObjective : a_questItem.objectives)
 		{
 			if (questObjective)
 			{
-				std::string text = questObjective->GetDisplayTextWithReplacedTags().c_str();
+				std::string text = util::GetObjectiveDisplayText(questObjective);
 				if (!text.empty() && std::ranges::find(addedTexts, text) == addedTexts.end())
 				{
 					addedTexts.push_back(text);
@@ -120,7 +142,7 @@ public:
 	void UpdateLayout()
 	{
 		auto movieView = GetMovieView();
-		if (!movieView || !IsObject())
+		if (!movieView || !IsReady())
 		{
 			logger::warn("UpdateLayout: QuestItemList movieView or object invalid");
 			return;
@@ -140,7 +162,7 @@ public:
 		SetMember("positionY0", posY0);
 		SetMember("maxHeight", newMaxHeight);
 
-		GFxObject pt(movieView);
+		IUI::GFxObject pt(movieView);
 		pt.SetMember("x", posX0);
 		pt.SetMember("y", posY0);
 
@@ -188,6 +210,14 @@ private:
 	QuestItemList(const GFxDisplayObject& a_questItemList) :
 		GFxDisplayObject{ a_questItemList }
 	{
+		InitializeInstance();
+	}
+
+	void InitializeInstance()
+	{
+		if (!IsReady()) {
+			return;
+		}
 		Invoke("QuestItemList", settings::questlist::positionX, settings::questlist::positionY, settings::questlist::maxHeight);
 		SetMember("_xscale", settings::questlist::scale);
 		SetMember("_yscale", settings::questlist::scale);
