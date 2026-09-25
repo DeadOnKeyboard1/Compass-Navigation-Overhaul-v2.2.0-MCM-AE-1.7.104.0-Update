@@ -31,6 +31,8 @@ namespace CNO
 
 		void SetMarkersExtraInfo();
 
+		void ResetRuntimeState(std::string_view a_reason = {});
+
 	private:
 
 		bool IsTheFocusedMarker(const RE::TESObjectREFR* a_marker) const
@@ -50,6 +52,27 @@ namespace CNO
 
 		std::string GetSideInQuest(RE::QUEST_DATA::Type a_questType) const;
 
+		void LogMarkerIndexDiagnostics(Compass* a_compass);
+
+		struct QuestPayloadEntry
+		{
+			std::uintptr_t quest = 0;
+			std::uintptr_t objective = 0;
+			std::uint32_t instanceID = 0;
+			std::uint32_t type = 0;
+			std::uint32_t objectiveOrder = 0;
+			int ageIndex = 0;
+			bool isInSameLocation = false;
+			std::string name;
+			std::string objectiveText;
+
+			bool operator==(const QuestPayloadEntry&) const = default;
+		};
+
+		std::vector<QuestPayloadEntry> BuildQuestPayload(const RE::TESObjectREFR* a_marker) const;
+		void RememberRenderedQuestPayload(RE::TESObjectREFR* a_marker, const std::vector<QuestPayloadEntry>& a_payload);
+		void InvalidateRenderedQuestPayload();
+
 		float timePreFocusingMarker = 0.0F;
 		float timeFocusingMarker = 0.0F;
 
@@ -59,6 +82,14 @@ namespace CNO
 
 		std::unordered_map<RE::TESObjectREFR*, std::unordered_map<RE::TESQuest*, QuestItem>> questItems;
 		std::unordered_map<RE::TESObjectREFR*, QuestItem> miscQuestItem;
+
+		RE::TESObjectREFR* renderedQuestPayloadMarker = nullptr;
+		std::vector<QuestPayloadEntry> renderedQuestPayload;
+		bool renderedQuestPayloadValid = false;
+
+		bool loggedMarkerCountMismatch = false;
+		bool loggedFocusedMarkerIndexMismatch = false;
+		bool loggedFocusedMarkerClipMismatch = false;
 
 		RE::PlayerCharacter* player = RE::PlayerCharacter::GetSingleton();
 		RE::PlayerCamera* playerCamera = RE::PlayerCamera::GetSingleton();

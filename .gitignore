@@ -24,3 +24,4 @@ CMakeUserPresets.json
 _toolchain/
 dist/
 build-logs/
+adaptive-output/

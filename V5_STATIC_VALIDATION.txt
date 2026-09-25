@@ -1,0 +1,36 @@
+Compass Navigation Overhaul - v5 Universal HUD Compatibility
+Target: Skyrim AE 1.7.104.0
+Base: v4.6 PDB packaging build
+
+STATIC REGRESSION CHECKS
+- PASS: CompassNavigationOverhaul.esp is unchanged from v4.6.
+- PASS: ESP SHA-256 = 300e744029966a66c8c8a797f0698c7d3221ce7a373d2f7567c9c3eb57208f8c.
+- PASS: MCM config/default settings are byte-identical to v4.6.
+- PASS: Settings.cpp / Settings.h are byte-identical to v4.6; v4.5 migration order is preserved.
+- PASS: all 10 translation files are byte-identical to v4.6.
+- PASS: all 10 translation files contain 58 unique $CNO_* keys.
+- PASS: GPL root license, NOTICE and third-party notices are unchanged.
+- PASS: no private local path fragments detected in the source tree.
+- PASS: no GFxValue::ToString() use in the new HUD discovery / InfinityUI binding path.
+- PASS: C++ delimiter counts are balanced in the modified runtime files.
+
+V5 HUD CHANGES
+- Runtime compass discovery scores live Scaleform objects by CNO/Skyrim capabilities.
+- Canonical CNO paths remain fast fallbacks but are no longer the only binding mechanism.
+- Deep HUD-tree discovery is bounded and cycle-safe.
+- InfinityUI PreReplace/PostPatch/Abort use direct candidate scoring; deep traversal is deferred until FinishLoadInstances.
+- Active compass immediate parent is used as the layout holder.
+- v4.3 native-transform baseline storage remains intact on the live holder.
+- QuestItemList is optional and no longer blocks the core compass path.
+- Non-CNO/unknown compass candidates preserve native marker rendering and use layout-only compatibility.
+
+VISUAL / SWF POLICY
+- Normal Build-CNO-1.7.104.bat does not package Compass.swf or QuestItemList.swf.
+- Therefore the installed UI skin remains authoritative for visuals.
+- Build-Adaptive-SWF-1.7.104.cmd is an optional LOCAL tool derived from the previously successful v7.5.8+ FFDec pipeline.
+- The adaptive tool patches the currently installed base SWFs and writes design-specific output under adaptive-output; those files are intentionally not part of the normal release.
+
+BUILD STATUS
+- Static/source validation completed in the Linux artifact environment.
+- A Windows/MSVC RelWithDebInfo build and in-game tests are still required for v5.
+- Recommended tests: Vanilla/CNO skin, Nordic UI/CNO skin, SkyHUD-style layout, fast travel, MCM 0/0/100 reset, journal close, location/enemy/quest/player markers, InfinityUI HUD rebuild.

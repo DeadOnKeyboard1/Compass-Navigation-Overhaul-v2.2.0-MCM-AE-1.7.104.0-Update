@@ -3,7 +3,8 @@ setlocal EnableExtensions EnableDelayedExpansion
 
 rem ============================================================================
 rem Compass Navigation Overhaul - Skyrim 1.7.104.0 build helper
-rem Builds the SE/AE RelWithDebInfo target and creates a Vortex-ready patch package with DLL + MCM.
+rem Builds the SE/AE RelWithDebInfo target and creates the design-neutral v5 Vortex patch: DLL + matching PDB + MCM + ESL-flagged ESP.
+rem Compass/QuestItemList SWFs are deliberately NOT packaged; the installed HUD skin remains authoritative.
 rem ============================================================================
 
 cd /d "%~dp0"
@@ -105,10 +106,15 @@ if not defined CMAKE_EXE (
 )
 call :say "CMake: %CMAKE_EXE%"
 
-set "CMAKE_VERSION=unknown"
-for /f "tokens=3" %%V in ('call ""%CMAKE_EXE%" --version" 2^>nul ^| findstr /b /c:"cmake version"') do set "CMAKE_VERSION=%%V"
-call :say "CMake version: !CMAKE_VERSION!"
+rem Validate CMake directly. Avoid nested FOR /F/CALL quoting here: a quoted
+rem executable path (for example under Program Files) can otherwise be parsed as
+rem an empty command by cmd.exe. The version text itself is informational only.
 "%CMAKE_EXE%" --version >>"%LOG%" 2>&1
+if errorlevel 1 (
+    call :fail "The detected CMake executable could not be started: %CMAKE_EXE%"
+    goto :failed
+)
+call :say "CMake executable validated."
 
 rem ---- Ninja -----------------------------------------------------------------
 call :find_ninja
@@ -220,7 +226,15 @@ if not exist "%DLL_PATH%" (
     goto :failed
 )
 call :say "Built DLL found: %DLL_PATH%"
-if defined PDB_PATH call :say "Built PDB found: %PDB_PATH%"
+if not defined PDB_PATH (
+    call :fail "Build finished but CompassNavigationOverhaul.pdb was not found under the build directory. A matching PDB is required for the public package."
+    goto :failed
+)
+if not exist "%PDB_PATH%" (
+    call :fail "The detected PDB path does not exist: %PDB_PATH%"
+    goto :failed
+)
+call :say "Built PDB found: %PDB_PATH%"
 
 rem ---- Package ---------------------------------------------------------------
 call :say "Creating dist package..."
@@ -244,13 +258,19 @@ if errorlevel 1 (
     goto :failed
 )
 
-if defined PDB_PATH if exist "%PDB_PATH%" (
-    copy /y "%PDB_PATH%" "%DIST_DIR%\SKSE\Plugins\CompassNavigationOverhaul.pdb" >>"%LOG%" 2>&1
-    if errorlevel 1 (
-        call :fail "Could not copy the PDB to dist\SKSE\Plugins."
-        goto :failed
-    )
-    copy /y "%PDB_PATH%" "%DIST_DIR%\CompassNavigationOverhaul.pdb" >>"%LOG%" 2>&1
+copy /y "%PDB_PATH%" "%DIST_DIR%\SKSE\Plugins\CompassNavigationOverhaul.pdb" >>"%LOG%" 2>&1
+if errorlevel 1 (
+    call :fail "Could not copy the PDB to dist\SKSE\Plugins."
+    goto :failed
+)
+if not exist "%DIST_DIR%\SKSE\Plugins\CompassNavigationOverhaul.pdb" (
+    call :fail "PDB copy reported success, but dist\SKSE\Plugins\CompassNavigationOverhaul.pdb does not exist."
+    goto :failed
+)
+copy /y "%PDB_PATH%" "%DIST_DIR%\CompassNavigationOverhaul.pdb" >>"%LOG%" 2>&1
+if errorlevel 1 (
+    call :fail "Could not copy the PDB to the dist root."
+    goto :failed
 )
 
 set "PACKAGE_ROOT=%DIST_DIR%\package"
@@ -259,6 +279,32 @@ mkdir "%PACKAGE_ROOT%\SKSE\Plugins" >nul 2>&1
 copy /y "%DIST_DIR%\SKSE\Plugins\CompassNavigationOverhaul.dll" "%PACKAGE_ROOT%\SKSE\Plugins\" >>"%LOG%" 2>&1
 if errorlevel 1 (
     call :fail "Could not stage the DLL for ZIP packaging."
+    goto :failed
+)
+copy /y "%DIST_DIR%\SKSE\Plugins\CompassNavigationOverhaul.pdb" "%PACKAGE_ROOT%\SKSE\Plugins\" >>"%LOG%" 2>&1
+if errorlevel 1 (
+    call :fail "Could not stage the matching PDB for ZIP packaging."
+    goto :failed
+)
+if not exist "%PACKAGE_ROOT%\SKSE\Plugins\CompassNavigationOverhaul.pdb" (
+    call :fail "PDB staging reported success, but the package PDB is missing."
+    goto :failed
+)
+
+rem Ship the proven MCM registration plugin from the previously working 1.7.104 MCM package.
+rem It is an ESP with the ESL flag (light plugin) and contains the Start Game Enabled
+rem MCM quest using MCM_ConfigBase. No separate CNO PEX is required.
+if not exist "%ROOT%\CompassNavigationOverhaul.esp" (
+    call :fail "MCM registration plugin is missing: CompassNavigationOverhaul.esp"
+    goto :failed
+)
+copy /y "%ROOT%\CompassNavigationOverhaul.esp" "%PACKAGE_ROOT%\CompassNavigationOverhaul.esp" >>"%LOG%" 2>&1
+if errorlevel 1 (
+    call :fail "Could not stage CompassNavigationOverhaul.esp for ZIP packaging."
+    goto :failed
+)
+if not exist "%PACKAGE_ROOT%\CompassNavigationOverhaul.esp" (
+    call :fail "MCM ESP copy reported success, but the staged plugin is missing."
     goto :failed
 )
 
@@ -286,9 +332,10 @@ if errorlevel 1 (
 
 rem Ship localized MCM strings. Skyrim/MCM Helper selects the matching file from
 rem Interface\Translations according to the current game language. Skyrim SE ships
-rem nine official interface languages; require and package all nine here.
+rem nine official interface languages; Czech is also retained from the proven working MCM package.
+rem Require and package all ten translation files here.
 mkdir "%PACKAGE_ROOT%\Interface\Translations" >nul 2>&1
-for %%L in (ENGLISH FRENCH ITALIAN GERMAN SPANISH POLISH RUSSIAN JAPANESE CHINESE) do (
+for %%L in (ENGLISH FRENCH ITALIAN GERMAN SPANISH POLISH RUSSIAN JAPANESE CHINESE CZECH) do (
     if not exist "%ROOT%\Interface\Translations\CompassNavigationOverhaul_%%L.txt" (
         call :fail "MCM translation file is missing: CompassNavigationOverhaul_%%L.txt"
         goto :failed
@@ -300,7 +347,7 @@ for %%L in (ENGLISH FRENCH ITALIAN GERMAN SPANISH POLISH RUSSIAN JAPANESE CHINES
     )
 )
 
-rem PDB stays in dist for debugging but is intentionally not put into the Vortex ZIP.
+rem The matching PDB is intentionally shipped next to the DLL for useful crash logging/symbolization.
 copy /y "%ROOT%\LICENSE" "%PACKAGE_ROOT%\LICENSE" >>"%LOG%" 2>&1
 copy /y "%ROOT%\NOTICE.md" "%PACKAGE_ROOT%\NOTICE.md" >>"%LOG%" 2>&1
 copy /y "%ROOT%\THIRD_PARTY_NOTICES.md" "%PACKAGE_ROOT%\THIRD_PARTY_NOTICES.md" >>"%LOG%" 2>&1
@@ -319,13 +366,18 @@ call :say ""
 call :say "BUILD SUCCESSFUL"
 call :say "DLL: %DIST_DIR%\CompassNavigationOverhaul.dll"
 call :say "Vortex path: %DIST_DIR%\SKSE\Plugins\CompassNavigationOverhaul.dll"
-if defined PDB_PATH call :say "PDB: %DIST_DIR%\SKSE\Plugins\CompassNavigationOverhaul.pdb"
+call :say "MCM ESP included in ZIP: CompassNavigationOverhaul.esp"
+call :say "PDB included in ZIP: SKSE\Plugins\CompassNavigationOverhaul.pdb"
+call :say "HUD design: preserved from the installed UI (no Compass/QuestItemList SWFs bundled)"
 call :say "ZIP: %ZIP_PATH%"
 call :say "Log: %LOG%"
 echo.
 echo Build successful.
 echo DLL: "%DIST_DIR%\CompassNavigationOverhaul.dll"
 echo Vortex path: "%DIST_DIR%\SKSE\Plugins\CompassNavigationOverhaul.dll"
+echo PDB included in ZIP: "SKSE\Plugins\CompassNavigationOverhaul.pdb"
+echo HUD design: preserved from the installed UI ^(no Compass/QuestItemList SWFs bundled^)
+echo MCM ESP included in ZIP: "CompassNavigationOverhaul.esp"
 echo ZIP: "%ZIP_PATH%"
 echo Log: "%LOG%"
 echo.
@@ -361,7 +413,12 @@ exit /b 0
 set "VS_PATH="
 set "VSWHERE=%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe"
 if exist "%VSWHERE%" (
-    for /f "usebackq tokens=*" %%V in (`"%VSWHERE%" -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath`) do if not defined VS_PATH set "VS_PATH=%%V"
+    rem Avoid FOR /F directly invoking a quoted executable path. Capture vswhere
+    rem output first, then read the first line. This is robust for Program Files paths.
+    set "VSWHERE_OUT=%TEMP%\cno-vswhere-!RANDOM!-!RANDOM!.txt"
+    "%VSWHERE%" -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath >"!VSWHERE_OUT!" 2>nul
+    if not errorlevel 1 if exist "!VSWHERE_OUT!" set /p "VS_PATH="<"!VSWHERE_OUT!"
+    if exist "!VSWHERE_OUT!" del /q "!VSWHERE_OUT!" >nul 2>&1
 )
 if not defined VS_PATH if exist "%ProgramFiles%\Microsoft Visual Studio\2022\BuildTools\Common7\Tools\VsDevCmd.bat" set "VS_PATH=%ProgramFiles%\Microsoft Visual Studio\2022\BuildTools"
 if not defined VS_PATH if exist "%ProgramFiles%\Microsoft Visual Studio\2022\Community\Common7\Tools\VsDevCmd.bat" set "VS_PATH=%ProgramFiles%\Microsoft Visual Studio\2022\Community"

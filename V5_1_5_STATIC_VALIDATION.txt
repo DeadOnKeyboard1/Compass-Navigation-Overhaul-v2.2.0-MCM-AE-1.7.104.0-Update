@@ -1,0 +1,22 @@
+[PASS] v5.1.4 exact TESQuestTarget tracking path retained
+[PASS] rendered quest payload cached separately from per-frame collection
+[PASS] payload comparison includes quest/objective identity and instance ID
+[PASS] objective order included in payload comparison
+[PASS] quest type/age/same-location/name included in payload comparison
+[PASS] same focused marker refreshes when quest payload changes
+[PASS] same focused marker clears stale list when no tracked quest remains
+[PASS] unchanged payload does not rebuild Scaleform quest list every frame
+[PASS] hidden/unavailable quest list invalidates rendered payload cache
+[PASS] lifecycle/HUD rebuild reset invalidates rendered payload cache
+[PASS] v5.1.2 interior focus code unchanged
+[PASS] v5.1.4 quest hook code unchanged
+[PASS] location/enemy/player-set marker hooks unchanged
+[PASS] MCM unchanged
+[PASS] ESP unchanged
+[PASS] no private filesystem/user data introduced
+[PASS] state simulation: initial quest payload renders once
+[PASS] state simulation: unchanged same-marker payload does not rebuild
+[PASS] state simulation: disabling one Misc objective on same marker rebuilds
+[PASS] state simulation: disabling all quests on same marker clears once
+[PASS] state simulation: re-enabling a quest on same marker rebuilds
+[PASS] state simulation: hidden list invalidation forces repopulation when visible again

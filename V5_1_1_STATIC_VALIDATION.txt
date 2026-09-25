@@ -1,0 +1,13 @@
+Compass Navigation Overhaul v5.1.1 - static validation
+
+[PASS] include unchanged from v5.1
+[PASS] source unchanged from v5.1
+[PASS] MCM unchanged from v5.1
+[PASS] Interface unchanged from v5.1
+[PASS] CompassNavigationOverhaul.esp unchanged from v5.1
+[PASS] CMakeLists.txt unchanged from v5.1
+[PASS] CMakePresets.json unchanged from v5.1
+[PASS] vcpkg.json unchanged from v5.1
+[PASS] broken CALL/CMake version parser removed
+[PASS] CMake direct validation present
+[PASS] vswhere temp capture present

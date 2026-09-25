@@ -1,0 +1,65 @@
+Compass Navigation Overhaul 2.2.0 / Skyrim AE 1.7.104.0
+v5.1.6 Quest Target Context Audit - static/source/package validation
+Date: 2026-09-25
+Baseline: v5.1.5 QUEST-PAYLOAD-REFRESH
+
+RESULT
+[PASS] 65/65 source/package consistency checks passed before adding this validation report.
+[INFO] No Windows/MSVC binary build or in-game execution was performed in this Linux audit environment.
+
+V5.1.6 FIX 1 - QUEST TARGET HOOK CONTEXT
+[PASS] The UpdateQuests hook no longer assumes RBX is always a direct TESQuestTarget*.
+[PASS] Both the direct target form and original CNO first-qword/slot form are supported.
+[PASS] Raw context candidates are never used as TESQuestTarget objects until pointer identity matches a known objective target.
+[PASS] GetTrackingRef is called only after that identity proof.
+[PASS] Only displayed objectives from running quests are accepted.
+[PASS] GetTrackingRef must resolve to the same marker RefHandle Skyrim is currently adding.
+[PASS] Failure to associate CNO metadata never suppresses the already-created vanilla marker.
+
+V5.1.6 FIX 2 - SAME-MARKER QUEST PAYLOAD REFRESH
+[PASS] The rendered payload now includes the expanded objective text, not only pointer/instance identity.
+[PASS] Dynamic/radiant alias-tag text changes can therefore invalidate the cached same-marker payload.
+[PASS] Objective text expansion is performed only while the quest list is bound, displayable and has a focused marker.
+[PASS] Existing v5.1.5 tracking-on/off refresh behavior remains intact.
+
+INDOOR / QUEST / MARKER SAFETY
+[PASS] Interior focus math does not apply GetNorthRotation to CNO's focus test.
+[PASS] Focus uses player-camera yaw and atan2(marker-player) heading.
+[PASS] Marker index fallback is bounded to Skyrim's 49 engine Scaleform marker slots.
+[PASS] Marker, player and marker-index null/validity guards remain in place.
+[PASS] Alternate Perspective suppression remains intact.
+[PASS] Per-frame quest/misc/faced-marker containers are cleared after use.
+[PASS] Rendered quest-payload state is invalidated through runtime/UI lifecycle reset paths.
+
+MCM / ASSETS / BUILD
+[PASS] MCM config contains 25 unique setting IDs and all 25 map to the parser's section/key handling.
+[PASS] 10 translation files are present and every config translation token exists in all 10.
+[PASS] CompassNavigationOverhaul.esp is byte-identical to v5.1.5.
+       SHA-256: 300e744029966a66c8c8a797f0698c7d3221ce7a373d2f7567c9c3eb57208f8c
+[PASS] MCM payload, translations, SWFs, normal/adaptive build scripts, CMake/vcpkg files and licenses are unchanged from v5.1.5.
+[PASS] Runtime target remains Skyrim 1.7.104.0 and C++23.
+[PASS] Build configuration remains RelWithDebInfo and requires/packages the PDB.
+[PASS] CommonLibSSE-NG remains pinned to v7.5.4 / c5424463bba9af0d75cde8640ba7ddd4cacb9e39.
+[PASS] vcpkg bootstrap remains pinned to 00c5775211f45cd08b37fce0484b4cb940e422ab.
+[PASS] No obvious private local path/name leak was found.
+[PASS] No build/, dist/, _toolchain/, .git, DLL, PDB, OBJ, LIB or EXE artifact is included in the source tree.
+[PASS] GPL license and third-party notices remain present.
+
+INTENDED V5.1.6 CHANGES
+- include/Hooks.h
+- source/Hooks.cpp
+- include/HUDMarkerManager.h
+- source/HUDMarkerManager.cpp
+- README.md
+- CHANGELOG.md
+- V5_1_6_QUEST_TARGET_CONTEXT_AUDIT.md
+- V5_1_6_STATIC_VALIDATION.txt (this report)
+
+RECOMMENDED IN-GAME REGRESSION TESTS
+- One tracked Misc objective through an indoor door.
+- Multiple Misc objectives sharing the same door, with only selected tasks tracked.
+- Disable one/all tasks in the journal while keeping the same door focused, then close the journal.
+- Re-enable a task without changing the focused door.
+- Normal quest + Misc objective sharing one indoor target.
+- A radiant/dynamic objective whose displayed alias/tag text changes.
+- A rotated interior cell to confirm the quest description remains aligned with the visible compass marker.

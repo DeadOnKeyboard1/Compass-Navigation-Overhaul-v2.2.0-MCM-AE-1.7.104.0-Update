@@ -1,0 +1,10 @@
+Compass Navigation Overhaul v5.1.2 - Interior marker focus static validation
+
+[PASS] util::GetAngleBetween no longer calls GetNorthRotation().
+[PASS] Focus angle still uses PlayerCamera yaw and the marker/player XY heading.
+[PASS] No changes to source/Hooks.cpp.
+[PASS] No changes to source/HUDMarkerManager.cpp.
+[PASS] No changes to CompassNavigationOverhaul.esp.
+[PASS] No changes to MCM config/default settings or translations.
+[PASS] Normal release still contains no Compass.swf or QuestItemList.swf binaries.
+[INFO] Windows/MSVC build and in-game validation remain required.

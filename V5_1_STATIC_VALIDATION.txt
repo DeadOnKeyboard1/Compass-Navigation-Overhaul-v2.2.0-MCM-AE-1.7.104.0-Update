@@ -1,0 +1,33 @@
+Compass Navigation Overhaul - v5.1 Safe Audit
+Target: Skyrim AE 1.7.104.0 / SKSE 2.3.1
+Base: v5.0 Universal HUD Compatibility
+
+SCOPE
+- Conservative source/runtime hardening only.
+- No marker hook offset/relocation changes.
+- No ESP, MCM default, translation, dependency-pin or public SWF-policy changes.
+
+STATIC SAFETY CHECKS
+- PASS: no GFxValue::ToString() calls in include/source.
+- PASS: InfinityUI replacement callbacks no longer walk/log arbitrary Scaleform members.
+- PASS: final HUD-discovery failure invalidates provisional bindings before refresh.
+- PASS: malformed/incomplete FinishLoadInstances invalidates provisional bindings and skips refresh.
+- PASS: QuestItemList optional ActionScript calls are guarded.
+- PASS: duplicate HudElements registration is prevented.
+- PASS: Compass/QuestList layout rejects non-finite transforms/coordinates.
+- PASS: settings sanitation rejects NaN/Infinity before HUD/math use.
+- PASS: marker processing obtains the current PlayerCamera at use time.
+- PASS: relative CALL validation checks committed/readable memory before dereference.
+- PASS: Journal/MCM close performs one refresh path, not two.
+
+REGRESSION PRESERVATION
+- PASS: CompassNavigationOverhaul.esp is byte-identical to v5.0/v4.6.
+- PASS: MCM config/default settings are byte-identical to v5.0.
+- PASS: all ten translation files are byte-identical to v5.0 and retain 58 unique $CNO_* keys each.
+- PASS: v4.5 settings migration priority remains MCM defaults -> legacy CNO INI -> MCM user settings.
+- PASS: v4.6 builder still requires and packages a matching PDB next to the DLL.
+- PASS: normal release still contains no Compass.swf/QuestItemList.swf binaries.
+
+BUILD/TEST STATUS
+- Static/source audit completed in the Linux artifact environment.
+- Windows/MSVC RelWithDebInfo compilation and in-game confirmation remain required.

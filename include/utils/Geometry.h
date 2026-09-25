@@ -40,19 +40,21 @@ namespace util
 		const RE::NiPoint3 playerPos = player->GetPosition();
 		const RE::NiPoint3 markerPos = a_markerRef->GetPosition();
 
-		float compassAngle = a_playerCamera->yaw;
-		if (RE::TESObjectCELL* parentCell = player->GetParentCell()) {
-			compassAngle += parentCell->GetNorthRotation();
-		}
+		// Skyrim positions compass markers against the player/camera angle.
+		// Interior north rotation affects the compass/cardinal strip, but it is not
+		// part of the marker-centering angle used by HUDMenu::UpdateCompassMarkers.
+		// Adding GetNorthRotation() here shifts CNO's invisible focus test away from
+		// the marker that is actually drawn on screen in rotated interior cells.
+		float playerCameraAngle = a_playerCamera->yaw;
 
 		const float diffX = markerPos.x - playerPos.x;
 		const float diffY = markerPos.y - playerPos.y;
 		float headingAngle = std::atan2(diffX, diffY);
 
-		CropAngleRange(compassAngle);
+		CropAngleRange(playerCameraAngle);
 		CropAngleRange(headingAngle);
 
-		float angle = headingAngle - compassAngle;
+		float angle = headingAngle - playerCameraAngle;
 		CropAngleRange(angle);
 		return angle;
 	}

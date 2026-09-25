@@ -12,11 +12,12 @@ namespace CNO
 	void HUDMarkerManager::ProcessQuestMarker(RE::TESQuest* a_quest, RE::BGSInstancedQuestObjective* a_questObjective,
 											  int a_questAgeIndex, RE::TESObjectREFR* a_marker, std::uint32_t a_markerIcon, std::uint32_t a_markerIndex)
 	{
-		if (!a_quest || !a_questObjective || !a_marker || !playerCamera) {
+		auto* camera = RE::PlayerCamera::GetSingleton();
+		if (!a_quest || !a_questObjective || !a_marker || !camera) {
 			return;
 		}
 
-		float angleToPlayerCamera = GetAngleBetween(playerCamera, a_marker);
+		float angleToPlayerCamera = GetAngleBetween(camera, a_marker);
 
 		if ((IsTheFocusedMarker(a_marker) && angleToPlayerCamera < settings::display::angleToKeepMarkerDetailsShown) ||
 			angleToPlayerCamera < settings::display::angleToShowMarkerDetails)
@@ -114,11 +115,12 @@ namespace CNO
 	void HUDMarkerManager::ProcessLocationMarker(RE::ExtraMapMarker* a_mapMarker, RE::TESObjectREFR* a_marker,
 												 std::uint32_t a_markerIcon, std::uint32_t a_markerIndex, RE::HUDMarker::ScaleformData* a_markerData)
 	{
-		if (!a_mapMarker || !a_mapMarker->mapData || !a_marker || !playerCamera) {
+		auto* camera = RE::PlayerCamera::GetSingleton();
+		if (!a_mapMarker || !a_mapMarker->mapData || !a_marker || !camera) {
 			return;
 		}
 
-		float angleToPlayerCamera = GetAngleBetween(playerCamera, a_marker);
+		float angleToPlayerCamera = GetAngleBetween(camera, a_marker);
 
 		bool isDiscoveredLocation = a_mapMarker->mapData->flags.all(RE::MapMarkerData::Flag::kVisible);
 
@@ -137,7 +139,9 @@ namespace CNO
 								  a_markerIcon, locationDescription);
 		}
 
-		if (!isDiscoveredLocation && settings::display::undiscoveredMeansUnknownMarkers)
+		if (auto* compass = Compass::GetSingleton();
+			!isDiscoveredLocation && settings::display::undiscoveredMeansUnknownMarkers &&
+			compass && compass->SupportsCNOFunctions())
 		{
 			// AddMarker has already copied the input ScaleformData into the manager buffer.
 			// Update that engine-owned slot (the original CNO behaviour), not the input
@@ -152,11 +156,12 @@ namespace CNO
 
 	void HUDMarkerManager::ProcessEnemyMarker(RE::Character* a_enemy, std::uint32_t a_markerIcon, std::uint32_t a_markerIndex)
 	{
-		if (!a_enemy || !playerCamera) {
+		auto* camera = RE::PlayerCamera::GetSingleton();
+		if (!a_enemy || !camera) {
 			return;
 		}
 
-		float angleToPlayerCamera = GetAngleBetween(playerCamera, a_enemy);
+		float angleToPlayerCamera = GetAngleBetween(camera, a_enemy);
 
 		if ((IsTheFocusedMarker(a_enemy) && angleToPlayerCamera < settings::display::angleToKeepMarkerDetailsShown) ||
 			angleToPlayerCamera < settings::display::angleToShowMarkerDetails)
@@ -171,11 +176,12 @@ namespace CNO
 
 	void HUDMarkerManager::ProcessPlayerSetMarker(RE::TESObjectREFR* a_marker, std::uint32_t a_markerIcon, std::uint32_t a_markerIndex)
 	{
-		if (!a_marker || !playerCamera) {
+		auto* camera = RE::PlayerCamera::GetSingleton();
+		if (!a_marker || !camera) {
 			return;
 		}
 
-		float angleToPlayerCamera = GetAngleBetween(playerCamera, a_marker);
+		float angleToPlayerCamera = GetAngleBetween(camera, a_marker);
 
 		if ((IsTheFocusedMarker(a_marker) && angleToPlayerCamera < settings::display::angleToKeepMarkerDetailsShown) ||
 			angleToPlayerCamera < settings::display::angleToShowMarkerDetails)
@@ -184,6 +190,106 @@ namespace CNO
 										a_markerIndex,
 										a_markerIcon, "");
 		}
+	}
+
+	void HUDMarkerManager::ResetRuntimeState(std::string_view a_reason)
+	{
+		timePreFocusingMarker = 0.0F;
+		timeFocusingMarker = 0.0F;
+
+		facedMarkers.clear();
+		preFocusedMarker.reset();
+		focusedMarker.reset();
+		questItems.clear();
+		miscQuestItem.clear();
+		InvalidateRenderedQuestPayload();
+
+		// Drop cached engine pointers as well. SetMarkersExtraInfo resolves the live
+		// singletons at the start of every marker update, so keeping an old-save pointer
+		// across a load boundary provides no benefit.
+		player = nullptr;
+		playerCamera = nullptr;
+		timeManager = nullptr;
+
+		// Diagnostics are intentionally once-per-runtime-lifecycle so a genuine mismatch
+		// remains visible after a save/load or HUD reconstruction without log spam.
+		loggedMarkerCountMismatch = false;
+		loggedFocusedMarkerIndexMismatch = false;
+		loggedFocusedMarkerClipMismatch = false;
+
+		if (a_reason.empty()) {
+			logger::info("Reset CNO marker runtime state");
+		} else {
+			logger::info("Reset CNO marker runtime state: {}", a_reason);
+		}
+	}
+
+	std::vector<HUDMarkerManager::QuestPayloadEntry> HUDMarkerManager::BuildQuestPayload(const RE::TESObjectREFR* a_marker) const
+	{
+		std::vector<QuestPayloadEntry> payload;
+		if (!a_marker) {
+			return payload;
+		}
+
+		auto appendQuestItem = [&](const RE::TESQuest* a_quest, const QuestItem& a_item) {
+			std::uint32_t objectiveOrder = 0;
+			for (const auto* instancedObjective : a_item.objectives) {
+				if (!instancedObjective || !instancedObjective->Objective) {
+					++objectiveOrder;
+					continue;
+				}
+
+				payload.push_back(QuestPayloadEntry{
+					reinterpret_cast<std::uintptr_t>(a_quest),
+					reinterpret_cast<std::uintptr_t>(instancedObjective->Objective),
+					instancedObjective->instanceID,
+					static_cast<std::uint32_t>(a_item.type),
+					objectiveOrder++,
+					a_item.ageIndex,
+					a_item.isInSameLocation,
+					a_item.name,
+					util::GetObjectiveDisplayText(instancedObjective)
+				});
+			}
+		};
+
+		if (auto regularIt = questItems.find(const_cast<RE::TESObjectREFR*>(a_marker)); regularIt != questItems.end()) {
+			for (const auto& [quest, questItem] : regularIt->second) {
+				appendQuestItem(quest, questItem);
+			}
+		}
+
+		if (auto miscIt = miscQuestItem.find(const_cast<RE::TESObjectREFR*>(a_marker)); miscIt != miscQuestItem.end()) {
+			appendQuestItem(nullptr, miscIt->second);
+		}
+
+		// questItems is an unordered_map. Canonicalize quest-level ordering so the
+		// comparison changes only when the rendered payload really changes. Keep the
+		// objectiveOrder field in the key because objective order inside a quest is
+		// user-visible in the QuestItemList.
+		std::ranges::sort(payload, [](const QuestPayloadEntry& a_lhs, const QuestPayloadEntry& a_rhs) {
+			return std::tie(a_lhs.quest, a_lhs.type, a_lhs.ageIndex, a_lhs.name,
+					a_lhs.isInSameLocation, a_lhs.objectiveOrder, a_lhs.objective, a_lhs.instanceID, a_lhs.objectiveText) <
+				std::tie(a_rhs.quest, a_rhs.type, a_rhs.ageIndex, a_rhs.name,
+					a_rhs.isInSameLocation, a_rhs.objectiveOrder, a_rhs.objective, a_rhs.instanceID, a_rhs.objectiveText);
+		});
+
+		return payload;
+	}
+
+	void HUDMarkerManager::RememberRenderedQuestPayload(
+		RE::TESObjectREFR* a_marker, const std::vector<QuestPayloadEntry>& a_payload)
+	{
+		renderedQuestPayloadMarker = a_marker;
+		renderedQuestPayload = a_payload;
+		renderedQuestPayloadValid = true;
+	}
+
+	void HUDMarkerManager::InvalidateRenderedQuestPayload()
+	{
+		renderedQuestPayloadMarker = nullptr;
+		renderedQuestPayload.clear();
+		renderedQuestPayloadValid = false;
 	}
 
 	void HUDMarkerManager::SetMarkersExtraInfo()
@@ -196,12 +302,16 @@ namespace CNO
 
 		auto* compass = Compass::GetSingleton();
 		auto* questItemList = QuestItemList::GetSingleton();
-		if (!compass || !compass->IsReady() || !questItemList || !questItemList->IsReady() || !player || !playerCamera || !timeManager) {
-			// InfinityUI may not have created/replaced the HUD instances yet. Do not
-			// retain stale marker data across frames while waiting for the UI.
+		const bool questListReady = questItemList && questItemList->IsReady();
+		if (!compass || !compass->IsReady() || !player || !playerCamera || !timeManager) {
+			// The compass is the core integration point. The quest list is optional in
+			// universal-HUD mode: a skin may move/remove that overlay while still
+			// exposing a perfectly usable compass. Do not disable focused-marker data
+			// just because the auxiliary quest list cannot be resolved.
 			facedMarkers.clear();
 			questItems.clear();
 			miscQuestItem.clear();
+			InvalidateRenderedQuestPayload();
 			return;
 		}
 
@@ -255,24 +365,49 @@ namespace CNO
 			compass->UpdateFocusedMarker();
 		}
 
+		if (focusChanged && focusedMarker) {
+			LogMarkerIndexDiagnostics(compass);
+		}
+
 		RE::ActorState* playerState = player->AsActorState();
 		if (!playerState) {
 			facedMarkers.clear();
 			questItems.clear();
 			miscQuestItem.clear();
+			InvalidateRenderedQuestPayload();
 			return;
 		}
 
-		bool canQuestItemListBeDisplayed = questItemList->CanBeDisplayed(player->GetParentCell(), player->IsInCombat());
+		bool canQuestItemListBeDisplayed = questListReady && questItemList->CanBeDisplayed(player->GetParentCell(), player->IsInCombat());
 
-		if (!canQuestItemListBeDisplayed || focusChanged)
+		std::vector<QuestPayloadEntry> currentQuestPayload;
+		RE::TESObjectREFR* currentQuestPayloadMarker = focusedMarker ? focusedMarker->ref : nullptr;
+		if (questListReady && canQuestItemListBeDisplayed && focusedMarker) {
+			// Objective text expansion can call back into the game. Do it only while the
+			// quest list can actually render; hidden/unbound states invalidate the cache below.
+			currentQuestPayload = BuildQuestPayload(focusedMarker->ref);
+		}
+
+		const bool questPayloadChanged =
+			!renderedQuestPayloadValid ||
+			renderedQuestPayloadMarker != currentQuestPayloadMarker ||
+			renderedQuestPayload != currentQuestPayload;
+
+		if (questListReady && (!canQuestItemListBeDisplayed || focusChanged || questPayloadChanged))
 		{
 			questItemList->RemoveAllQuests();
 		}
 
+		if (!questListReady || !canQuestItemListBeDisplayed) {
+			// The Scaleform list is either unavailable or intentionally empty. Do not
+			// remember the current C++ payload as rendered; when the list becomes usable
+			// again the first frame must repopulate it even if focus never changed.
+			InvalidateRenderedQuestPayload();
+		}
+
 		if (canQuestItemListBeDisplayed && isFocusedQuestMarker)
 		{
-			if (focusChanged)
+			if (focusChanged || questPayloadChanged)
 			{
 				if (questItems.contains(focusedMarker->ref))
 				{
@@ -307,6 +442,10 @@ namespace CNO
 				}
 			}
 
+			if (focusChanged || questPayloadChanged) {
+				RememberRenderedQuestPayload(currentQuestPayloadMarker, currentQuestPayload);
+			}
+
 			questItemList->SetHiddenByForce(false);
 
 			float playerSpeed = playerState->DoGetMovementSpeed();
@@ -321,10 +460,77 @@ namespace CNO
 				questItemList->Update();
 			}
 		}
+		else if (canQuestItemListBeDisplayed && (focusChanged || questPayloadChanged))
+		{
+			// Same focused reference can stop being a quest marker after Journal tracking
+			// changes. RemoveAllQuests above already cleared the stale Scaleform entries;
+			// remember the now-empty payload so we do not repeat that clear every frame.
+			RememberRenderedQuestPayload(currentQuestPayloadMarker, currentQuestPayload);
+		}
 
 		facedMarkers.clear();
 		questItems.clear();
 		miscQuestItem.clear();
+	}
+
+	void HUDMarkerManager::LogMarkerIndexDiagnostics(Compass* a_compass)
+	{
+		if (!a_compass || !a_compass->IsReady()) {
+			return;
+		}
+
+		auto* movie = a_compass->GetMovieView();
+		auto hud = HUDDiscovery::FindHUDRoot(movie, a_compass);
+		if (!movie || !hud || !hud->IsUsable()) {
+			return;
+		}
+
+		RE::GFxValue markerList;
+		if (!static_cast<RE::GFxValue&>(*hud).GetMember("CompassMarkerList", &markerList) || !markerList.IsArray()) {
+			return;
+		}
+
+		const std::uint32_t visibleMarkerCount = markerList.GetArraySize();
+		if (auto* engineManager = RE::HUDMarkerManager::GetSingleton();
+			engineManager && engineManager->currentMarkerIndex <= 49 &&
+			engineManager->currentMarkerIndex != visibleMarkerCount && !loggedMarkerCountMismatch)
+		{
+			loggedMarkerCountMismatch = true;
+			logger::warn(
+				"Marker-index diagnostic: engine marker count ({}) differs from CompassMarkerList size ({}) at '{}'",
+				engineManager->currentMarkerIndex, visibleMarkerCount, a_compass->GetActivePath());
+		}
+
+		if (!focusedMarker) {
+			return;
+		}
+
+		if (focusedMarker->index >= visibleMarkerCount) {
+			if (!loggedFocusedMarkerIndexMismatch) {
+				loggedFocusedMarkerIndexMismatch = true;
+				logger::warn(
+					"Marker-index diagnostic: focused marker index {} is outside CompassMarkerList size {} at '{}'",
+					focusedMarker->index, visibleMarkerCount, a_compass->GetActivePath());
+			}
+			return;
+		}
+
+		// After SetFocusedMarkerInfo/UpdateFocusedMarker, the focused clip should refer
+		// to the movie clip stored by the same CompassMarkerList entry. Do not repair a
+		// mismatch here; this is diagnostics only so the stable marker behaviour remains
+		// untouched.
+		RE::GFxValue markerEntry, expectedMovie, focusedMovie;
+		RE::GFxValue focusedInstance = a_compass->GetMember("FocusedMarkerInstance");
+		if (markerList.GetElement(focusedMarker->index, &markerEntry) && markerEntry.IsObject() &&
+			markerEntry.GetMember("movie", &expectedMovie) && expectedMovie.IsDisplayObject() &&
+			focusedInstance.IsObject() && focusedInstance.GetMember("Movie", &focusedMovie) && focusedMovie.IsDisplayObject() &&
+			!(expectedMovie == focusedMovie) && !loggedFocusedMarkerClipMismatch)
+		{
+			loggedFocusedMarkerClipMismatch = true;
+			logger::warn(
+				"Marker-index diagnostic: focused Scaleform clip does not match CompassMarkerList[{}] at '{}'",
+				focusedMarker->index, a_compass->GetActivePath());
+		}
 	}
 
 	std::unique_ptr<Compass::Marker> HUDMarkerManager::GetMostCenteredMarker() const

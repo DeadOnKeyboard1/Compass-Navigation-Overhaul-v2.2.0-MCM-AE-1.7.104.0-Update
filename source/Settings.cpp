@@ -77,50 +77,121 @@ namespace settings
 			std::string lowerKey = key;
 			for (auto& c : lowerKey) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
 
-			auto parseBool = [](const std::string& v) -> bool {
-				return v == "1" || v == "true" || v == "True" || v == "TRUE";
+			auto parseBool = [](const std::string& v) -> std::optional<bool> {
+				std::string lower = v;
+				for (auto& c : lower) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+				if (lower == "1" || lower == "true") return true;
+				if (lower == "0" || lower == "false") return false;
+				return std::nullopt;
 			};
-			auto parseFloat = [](const std::string& v) -> float {
-				try { return std::stof(v); } catch (...) { return 0.0F; }
+			auto parseFloat = [](const std::string& v) -> std::optional<float> {
+				try {
+					size_t parsed = 0;
+					const float value = std::stof(v, &parsed);
+					if (parsed != v.size() || !std::isfinite(value)) return std::nullopt;
+					return value;
+				} catch (...) {
+					return std::nullopt;
+				}
 			};
-			auto parseUInt = [](const std::string& v) -> std::uint32_t {
-				try { return static_cast<std::uint32_t>(std::stoul(v)); } catch (...) { return 0; }
+			auto parseUInt = [](const std::string& v) -> std::optional<std::uint32_t> {
+				if (v.empty() || v.front() == '-') return std::nullopt;
+				try {
+					size_t parsed = 0;
+					const unsigned long value = std::stoul(v, &parsed, 10);
+					if (parsed != v.size() || value > (std::numeric_limits<std::uint32_t>::max)()) return std::nullopt;
+					return static_cast<std::uint32_t>(value);
+				} catch (...) {
+					return std::nullopt;
+				}
+			};
+
+			auto warnInvalid = [&]() {
+				logger::warn("Ignoring invalid INI value [{}] {}='{}' from {}",
+					currentSection, key, val, a_path.string());
+			};
+			auto assignFloat = [&](float& target) {
+				if (auto parsed = parseFloat(val)) target = *parsed; else warnInvalid();
+			};
+			auto assignBool = [&](bool& target) {
+				if (auto parsed = parseBool(val)) target = *parsed; else warnInvalid();
+			};
+			auto assignUInt = [&](std::uint32_t& target) {
+				if (auto parsed = parseUInt(val)) target = *parsed; else warnInvalid();
 			};
 
 			if (currentSection == "questlist") {
-				if (lowerKey == "fpositionx") questlist::positionX = parseFloat(val);
-				else if (lowerKey == "fpositiony") questlist::positionY = parseFloat(val);
-				else if (lowerKey == "fscale") questlist::scale = parseFloat(val);
-				else if (lowerKey == "fmaxheight") questlist::maxHeight = parseFloat(val);
-				else if (lowerKey == "bshowinexteriors") questlist::showInExteriors = parseBool(val);
-				else if (lowerKey == "bshowininteriors") questlist::showInInteriors = parseBool(val);
-				else if (lowerKey == "bhideincombat") questlist::hideInCombat = parseBool(val);
-				else if (lowerKey == "fwalkingdelaytoshow") questlist::walkingDelayToShow = parseFloat(val);
-				else if (lowerKey == "fjoggingdelaytoshow") questlist::joggingDelayToShow = parseFloat(val);
-				else if (lowerKey == "fsprintingdelaytoshow") questlist::sprintingDelayToShow = parseFloat(val);
+				if (lowerKey == "fpositionx") assignFloat(questlist::positionX);
+				else if (lowerKey == "fpositiony") assignFloat(questlist::positionY);
+				else if (lowerKey == "fscale") assignFloat(questlist::scale);
+				else if (lowerKey == "fmaxheight") assignFloat(questlist::maxHeight);
+				else if (lowerKey == "bshowinexteriors") assignBool(questlist::showInExteriors);
+				else if (lowerKey == "bshowininteriors") assignBool(questlist::showInInteriors);
+				else if (lowerKey == "bhideincombat") assignBool(questlist::hideInCombat);
+				else if (lowerKey == "fwalkingdelaytoshow") assignFloat(questlist::walkingDelayToShow);
+				else if (lowerKey == "fjoggingdelaytoshow") assignFloat(questlist::joggingDelayToShow);
+				else if (lowerKey == "fsprintingdelaytoshow") assignFloat(questlist::sprintingDelayToShow);
 			} else if (currentSection == "compass") {
-				if (lowerKey == "foffsetx") compass::offsetX = parseFloat(val);
-				else if (lowerKey == "foffsety") compass::offsetY = parseFloat(val);
-				else if (lowerKey == "fscale") compass::scale = parseFloat(val);
+				if (lowerKey == "foffsetx") assignFloat(compass::offsetX);
+				else if (lowerKey == "foffsety") assignFloat(compass::offsetY);
+				else if (lowerKey == "fscale") assignFloat(compass::scale);
 			} else if (currentSection == "display") {
-				if (lowerKey == "busemetricunits") display::useMetricUnits = parseBool(val);
-				else if (lowerKey == "bshowundiscoveredlocationmarkers") display::showUndiscoveredLocationMarkers = parseBool(val);
-				else if (lowerKey == "bundiscoveredmeansunknownmarkers") display::undiscoveredMeansUnknownMarkers = parseBool(val);
-				else if (lowerKey == "bundiscoveredmeansunknowninfo") display::undiscoveredMeansUnknownInfo = parseBool(val);
-				else if (lowerKey == "bshowenemymarkers") display::showEnemyMarkers = parseBool(val);
-				else if (lowerKey == "bshowenemynameundermarker") display::showEnemyNameUnderMarker = parseBool(val);
-				else if (lowerKey == "bshowobjectiveastarget") display::showObjectiveAsTarget = parseBool(val);
-				else if (lowerKey == "bshowotherobjectivescount") display::showOtherObjectivesCount = parseBool(val);
-				else if (lowerKey == "bshowinteriormarkers") display::showInteriorMarkers = parseBool(val);
-				else if (lowerKey == "fangletoshowmarkerdetails") display::angleToShowMarkerDetails = parseFloat(val);
-				else if (lowerKey == "fangletokeepmarkerdetailsshown") display::angleToKeepMarkerDetailsShown = parseFloat(val);
-				else if (lowerKey == "ffocusingdelaytoshow") display::focusingDelayToShow = parseFloat(val);
+				if (lowerKey == "busemetricunits") assignBool(display::useMetricUnits);
+				else if (lowerKey == "bshowundiscoveredlocationmarkers") assignBool(display::showUndiscoveredLocationMarkers);
+				else if (lowerKey == "bundiscoveredmeansunknownmarkers") assignBool(display::undiscoveredMeansUnknownMarkers);
+				else if (lowerKey == "bundiscoveredmeansunknowninfo") assignBool(display::undiscoveredMeansUnknownInfo);
+				else if (lowerKey == "bshowenemymarkers") assignBool(display::showEnemyMarkers);
+				else if (lowerKey == "bshowenemynameundermarker") assignBool(display::showEnemyNameUnderMarker);
+				else if (lowerKey == "bshowobjectiveastarget") assignBool(display::showObjectiveAsTarget);
+				else if (lowerKey == "bshowotherobjectivescount") assignBool(display::showOtherObjectivesCount);
+				else if (lowerKey == "bshowinteriormarkers") assignBool(display::showInteriorMarkers);
+				else if (lowerKey == "fangletoshowmarkerdetails") assignFloat(display::angleToShowMarkerDetails);
+				else if (lowerKey == "fangletokeepmarkerdetailsshown") assignFloat(display::angleToKeepMarkerDetailsShown);
+				else if (lowerKey == "ffocusingdelaytoshow") assignFloat(display::focusingDelayToShow);
 			} else if (currentSection == "debug") {
-				if (lowerKey == "uloglevel") debug::logLevel = static_cast<logger::level>(parseUInt(val));
+				if (lowerKey == "uloglevel") {
+					std::uint32_t rawLevel = static_cast<std::uint32_t>(debug::logLevel);
+					assignUInt(rawLevel);
+					debug::logLevel = static_cast<logger::level>(rawLevel);
+				}
 			}
+
 		}
 
 		logger::info("Read INI settings from {}", a_path.string());
+	}
+
+	static void MigrateLegacySettingsIfNeeded(const std::filesystem::path& a_legacyIni,
+		const std::filesystem::path& a_userSettingsIni)
+	{
+		std::error_code ec;
+		if (std::filesystem::exists(a_userSettingsIni, ec)) {
+			return;
+		}
+
+		ec.clear();
+		if (!std::filesystem::exists(a_legacyIni, ec)) {
+			return;
+		}
+
+		ec.clear();
+		auto parent = a_userSettingsIni.parent_path();
+		if (!parent.empty()) {
+			std::filesystem::create_directories(parent, ec);
+			if (ec) {
+				logger::warn("Could not create MCM settings directory for legacy migration: {}", ec.message());
+				return;
+			}
+		}
+
+		ec.clear();
+		if (std::filesystem::copy_file(a_legacyIni, a_userSettingsIni,
+			std::filesystem::copy_options::none, ec)) {
+			logger::info("Migrated legacy CNO settings from {} to {}",
+				a_legacyIni.string(), a_userSettingsIni.string());
+		} else if (ec) {
+			logger::warn("Could not migrate legacy CNO settings to MCM user settings: {}", ec.message());
+		}
 	}
 
 	void Reload()
@@ -129,13 +200,39 @@ namespace settings
 		std::filesystem::path mcmConfigIniPath = ResolvePath("Data/MCM/Config/CompassNavigationOverhaul/settings.ini");
 		std::filesystem::path mcmSettingsIniPath = ResolvePath("Data/MCM/Settings/CompassNavigationOverhaul.ini");
 
-		// Parse in increasing priority. MCM's per-user settings override the shipped
-		// plugin defaults without touching Skyrim's internal INI/VTable machinery.
-		ParseIniDirect(pluginIniPath);
+		// Upgrade compatibility: original/older CNO releases stored user preferences in
+		// Data/SKSE/Plugins/CompassNavigationOverhaul.ini. MCM Helper stores per-user
+		// overrides in Data/MCM/Settings. Seed that file once when it does not exist so
+		// a Vortex/Nexus update keeps the previous layout instead of falling back to 100%.
+		MigrateLegacySettingsIfNeeded(pluginIniPath, mcmSettingsIniPath);
+
+		// Parse in increasing priority:
+		//   1) shipped MCM defaults
+		//   2) legacy/original CNO INI (upgrade compatibility)
+		//   3) MCM Helper per-user settings (authoritative)
+		// This preserves old installations while keeping explicit MCM changes highest.
 		ParseIniDirect(mcmConfigIniPath);
+		ParseIniDirect(pluginIniPath);
 		ParseIniDirect(mcmSettingsIniPath);
 
 		// Sanitize values that are consumed directly by Scaleform/math code.
+		// std::stof accepts textual NaN/Inf values; never forward those into UI transforms
+		// or angle calculations. Restore the corresponding shipped default instead.
+		auto finiteOr = [](float value, float fallback) { return std::isfinite(value) ? value : fallback; };
+		questlist::positionX = finiteOr(questlist::positionX, 0.008F);
+		questlist::positionY = finiteOr(questlist::positionY, 0.125F);
+		questlist::scale = finiteOr(questlist::scale, 100.0F);
+		questlist::maxHeight = finiteOr(questlist::maxHeight, 0.5F);
+		questlist::walkingDelayToShow = finiteOr(questlist::walkingDelayToShow, 0.0F);
+		questlist::joggingDelayToShow = finiteOr(questlist::joggingDelayToShow, 1.0F);
+		questlist::sprintingDelayToShow = finiteOr(questlist::sprintingDelayToShow, 1.5F);
+		compass::offsetX = finiteOr(compass::offsetX, 0.0F);
+		compass::offsetY = finiteOr(compass::offsetY, 0.0F);
+		compass::scale = finiteOr(compass::scale, 100.0F);
+		display::angleToShowMarkerDetails = finiteOr(display::angleToShowMarkerDetails, 10.0F);
+		display::angleToKeepMarkerDetailsShown = finiteOr(display::angleToKeepMarkerDetailsShown, 35.0F);
+		display::focusingDelayToShow = finiteOr(display::focusingDelayToShow, 0.1F);
+
 		display::angleToShowMarkerDetails = std::clamp(display::angleToShowMarkerDetails, 0.0F, 180.0F);
 		display::angleToKeepMarkerDetailsShown = std::clamp(display::angleToKeepMarkerDetailsShown, 0.0F, 180.0F);
 		display::focusingDelayToShow = std::max(display::focusingDelayToShow, 0.0F);

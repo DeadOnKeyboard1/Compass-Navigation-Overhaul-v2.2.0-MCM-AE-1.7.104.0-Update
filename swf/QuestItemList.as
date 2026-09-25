@@ -1,4 +1,4 @@
-﻿var questItem:QuestItem;
+var questItem:QuestItem;
 var entries:Array;
 
 var All:Boolean;
@@ -12,6 +12,37 @@ var positionY0:Number;
 var maxHeight:Number;
 
 var SCALE:Number = 65;
+
+function ResolveHUDMenu():MovieClip
+{
+	var current:MovieClip = this;
+	for (var i:Number = 0; i < 10 && current != undefined; i++)
+	{
+		if (current.HudElements != undefined || current.CompassMarkerList != undefined)
+		{
+			return current;
+		}
+		current = current._parent;
+	}
+	if (_root.HUDMovieBaseInstance != undefined)
+	{
+		return _root.HUDMovieBaseInstance;
+	}
+	return _root;
+}
+
+function ResolveCompassHolder(a_hud:MovieClip):MovieClip
+{
+	if (a_hud != undefined && a_hud.__CNO_CompassHolder != undefined)
+	{
+		return a_hud.__CNO_CompassHolder;
+	}
+	if (a_hud != undefined && a_hud.CompassShoutMeterHolder != undefined)
+	{
+		return a_hud.CompassShoutMeterHolder;
+	}
+	return undefined;
+}
 
 function QuestItemList(a_positionX:Number, a_positionY:Number, a_maxHeight:Number):Void
 {
@@ -38,7 +69,18 @@ function QuestItemList(a_positionX:Number, a_positionY:Number, a_maxHeight:Numbe
 
 function AddToHudElements():Void
 {
-	_level0.HUDMovieBaseInstance.HudElements.push(this);
+	var hud:MovieClip = ResolveHUDMenu();
+	if (hud != undefined && hud.HudElements != undefined)
+	{
+		for (var i:Number = 0; i < hud.HudElements.length; i++)
+		{
+			if (hud.HudElements[i] == this)
+			{
+				return;
+			}
+		}
+		hud.HudElements.push(this);
+	}
 }
 
 function AddQuest(a_type:Number, a_title:String, a_isInSameLocation:Boolean, a_objectives:Array, a_ageIndex:Number):Void
@@ -58,11 +100,25 @@ function SetQuestSide(a_side:String):Void
 
 function Update():Void
 {
-		// iHUD show/hide compatibility
-	if (_root.HUDMovieBaseInstance.CompassShoutMeterHolder.Compass.DirectionRect._alpha &&
-		// Toggle Compass Hotkey show/hide compatibility
-		_root.HUDMovieBaseInstance.CompassShoutMeterHolder._alpha
-		)
+	// iHUD / compass-toggle compatibility. Unknown HUD layouts default to visible
+	// instead of hiding the quest list permanently.
+	var hud:MovieClip = ResolveHUDMenu();
+	var holder:MovieClip = ResolveCompassHolder(hud);
+	var compassVisible:Boolean = true;
+	if (holder != undefined)
+	{
+		if (holder._alpha != undefined && holder._alpha <= 0)
+		{
+			compassVisible = false;
+		}
+		if (holder.Compass != undefined && holder.Compass.DirectionRect != undefined &&
+			holder.Compass.DirectionRect._alpha != undefined && holder.Compass.DirectionRect._alpha <= 0)
+		{
+			compassVisible = false;
+		}
+	}
+
+	if (compassVisible)
 	{
 		if (entries.length > 1)
 		{

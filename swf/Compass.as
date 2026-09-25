@@ -12,7 +12,28 @@ var CompassFrameAlt:MovieClip;
 var FocusedMarkerInfo:CompassMarkerInfo;
 
 // References
-var HUDMenu:MovieClip = _root.HUDMovieBaseInstance;
+// Resolve the live HUD container by capability instead of assuming the vanilla
+// _root.HUDMovieBaseInstance path. UI skins can rename/reparent the compass.
+function ResolveHUDMenu():MovieClip
+{
+	var current:MovieClip = this;
+	for (var i:Number = 0; i < 10 && current != undefined; i++)
+	{
+		if (current.CompassMarkerList != undefined && current.CompassTargetDataA != undefined)
+		{
+			return current;
+		}
+		current = current._parent;
+	}
+
+	if (_root.HUDMovieBaseInstance != undefined)
+	{
+		return _root.HUDMovieBaseInstance;
+	}
+	return _root;
+}
+
+var HUDMenu:MovieClip = ResolveHUDMenu();
 var MarkerList:Array = HUDMenu.CompassMarkerList;
 var MarkersData:Array = HUDMenu.CompassTargetDataA;
 
@@ -29,13 +50,25 @@ var COMPASS_STRIDE:Number = 4;
 
 function Compass():Void
 {
+	// Re-resolve at the actual init point. Some HUD replacers attach/reparent the
+	// compass after the script itself has already been constructed.
+	HUDMenu = ResolveHUDMenu();
+	MarkerList = HUDMenu.CompassMarkerList;
+	MarkersData = HUDMenu.CompassTargetDataA;
+	MarkerQuest = HUDMenu.CompassMarkerQuest;
+	MarkerQuestDoor = HUDMenu.CompassMarkerQuestDoor;
+
 	CompassTemperatureHolderInstance.gotoAndStop("Empty");
 	HUDMenu.TemperatureMeter_mc = CompassTemperatureHolderInstance;
 
 	HUDMenu.CompassRect = DirectionRect;
 
 	// Hide in dialogue mode
-	delete HUDMenu.CompassShoutMeterHolder["DialogueMode"];
+	var CompassHolder:MovieClip = this._parent;
+	if (CompassHolder != undefined)
+	{
+		delete CompassHolder["DialogueMode"];
+	}
 
 	// SkyHUD compatibility
 	if (HUDMenu.CompassFrameAlt == undefined)

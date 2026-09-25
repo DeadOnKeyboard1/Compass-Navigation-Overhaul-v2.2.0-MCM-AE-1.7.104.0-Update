@@ -1,0 +1,58 @@
+$CNO_Title	Compass Navigation Overhaul
+$CNO_Page_QuestList	Quest Tracker
+$CNO_Page_Compass	Compass & Markers
+$CNO_Header_PositionScale	Position & Scale
+$CNO_PositionX_Title	Position X (Horizontal)
+$CNO_PositionX_Desc	Moves the quest tracker horizontally left or right. Default: 0.008.
+$CNO_PositionY_Title	Position Y (Vertical)
+$CNO_PositionY_Desc	Moves the quest tracker vertically up or down. Increase value to move below clock widgets. Default: 0.125.
+$CNO_Scale_Title	Size / Scale
+$CNO_Scale_Desc	Scales the entire quest tracker in percent. Default: 100%.
+$CNO_MaxHeight_Title	Max Height
+$CNO_MaxHeight_Desc	Maximum vertical height of the quest tracker as screen proportion. Default: 0.50.
+$CNO_Header_Visibility	Visibility
+$CNO_ShowExteriors_Title	Show in Exteriors
+$CNO_ShowExteriors_Desc	Shows the quest tracker in outdoor exterior cells.
+$CNO_ShowInteriors_Title	Show in Interiors
+$CNO_ShowInteriors_Desc	Shows the quest tracker in interior cells and dungeons.
+$CNO_HideInCombat_Title	Hide in Combat
+$CNO_HideInCombat_Desc	Automatically hides the quest tracker during combat or when weapons are drawn.
+$CNO_Header_Timing	Timers & Delays
+$CNO_WalkingDelay_Title	Walking Delay
+$CNO_WalkingDelay_Desc	Delay in seconds before showing the quest tracker while walking.
+$CNO_JoggingDelay_Title	Jogging Delay
+$CNO_JoggingDelay_Desc	Delay in seconds before showing the quest tracker while jogging.
+$CNO_SprintingDelay_Title	Sprinting Delay
+$CNO_SprintingDelay_Desc	Delay in seconds before showing the quest tracker while sprinting.
+$CNO_Header_CompassPosition	Compass Position & Scale
+$CNO_CompassOffsetX_Title	Compass Offset X
+$CNO_CompassOffsetX_Desc	Horizontal pixel offset for the compass bar (Default: 0px).
+$CNO_CompassOffsetY_Title	Compass Offset Y
+$CNO_CompassOffsetY_Desc	Vertical pixel offset for the compass bar (Default: 0px).
+$CNO_CompassScale_Title	Compass Scale
+$CNO_CompassScale_Desc	Scales the compass bar in percent (Default: 100%).
+$CNO_Header_CompassMarkers	Marker & Compass Options
+$CNO_UseMetric_Title	Metric Units (Meters)
+$CNO_UseMetric_Desc	Displays distances in meters instead of feet.
+$CNO_ShowUndiscovered_Title	Show Undiscovered Locations
+$CNO_ShowUndiscovered_Desc	Displays markers for undiscovered locations on the compass.
+$CNO_UndiscoveredUnknownMarker_Title	Undiscovered as Question Mark
+$CNO_UndiscoveredUnknownMarker_Desc	Displays a question mark icon for undiscovered locations.
+$CNO_UndiscoveredUnknownInfo_Title	Hide Names for Undiscovered
+$CNO_UndiscoveredUnknownInfo_Desc	Hides location name and details until discovered.
+$CNO_ShowEnemyMarkers_Title	Show Enemy Markers
+$CNO_ShowEnemyMarkers_Desc	Displays red enemy dots on the compass.
+$CNO_ShowEnemyName_Title	Show Enemy Name under Marker
+$CNO_ShowEnemyName_Desc	Displays the name of the focused enemy underneath the marker.
+$CNO_ShowObjectiveTarget_Title	Show Objective as Target
+$CNO_ShowObjectiveTarget_Desc	Highlights the active quest objective on the compass.
+$CNO_ShowOtherObjectivesCount_Title	Show Other Objectives Count
+$CNO_ShowOtherObjectivesCount_Desc	Displays count badge when multiple objectives are clustered.
+$CNO_ShowInteriorMarkers_Title	Show Interior Markers
+$CNO_ShowInteriorMarkers_Desc	Enables quest markers in interior cells.
+$CNO_AngleShowDetails_Title	Angle to Show Details
+$CNO_AngleShowDetails_Desc	Viewing angle threshold in degrees to display marker details.
+$CNO_FocusDelay_Title	Focusing Delay
+$CNO_FocusDelay_Desc	Delay in seconds before showing details of a centered marker.
+$CNO_AngleKeepDetails_Title	Úhel zachování podrobností
+$CNO_AngleKeepDetails_Desc	Úhel, při kterém zůstanou podrobnosti již zaměřené značky viditelné.

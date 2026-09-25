@@ -1,0 +1,14 @@
+[PASS] sixth target arg header
+[PASS] xbyak wrapper
+[PASS] quest hook uses branch
+[PASS] patch-site target validation retained
+[PASS] vanilla AddMarker first
+[PASS] exact target identity
+[PASS] tracking ref revalidated
+[PASS] no ref-wide metadata fallback
+[PASS] interior focus unchanged
+[PASS] HUD marker manager unchanged
+[PASS] MCM unchanged
+[PASS] ESP unchanged
+[PASS] no private filesystem/user data introduced
+[PASS] no GFxValue::ToString() reintroduced in changed runtime files

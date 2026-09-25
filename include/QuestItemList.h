@@ -2,6 +2,7 @@
 
 #include "IUI/GFxArray.h"
 #include "IUI/GFxDisplayObject.h"
+#include "HUDDiscovery.h"
 
 #include "Settings.h"
 #include "utils/QuestText.h"
@@ -29,15 +30,17 @@ class QuestItemList : public IUI::GFxDisplayObject
 public:
 	static constexpr inline std::string_view path = "_level0.HUDMovieBaseInstance.QuestItemList";
 
-	static void InitSingleton(const GFxDisplayObject& a_questItemList)
+	static void InitSingleton(const GFxDisplayObject& a_questItemList, std::string_view a_path = {}, bool a_initialize = true)
 	{
 		if (!singleton) {
-			static QuestItemList singletonInstance{ a_questItemList };
+			static QuestItemList singletonInstance{ a_questItemList, a_initialize };
 			singleton = &singletonInstance;
+			if (!a_path.empty()) { singleton->activePath = a_path; }
 		} else {
 			*static_cast<GFxDisplayObject*>(singleton) = a_questItemList;
 			singleton->hiddenByForce = false;
-			singleton->InitializeInstance();
+			if (a_initialize) { singleton->InitializeInstance(); }
+			if (!a_path.empty()) { singleton->activePath = a_path; }
 		}
 	}
 
@@ -52,6 +55,8 @@ public:
 	}
 
 	[[nodiscard]] bool IsReady() const noexcept { return IsUsable(); }
+
+	[[nodiscard]] const std::string& GetActivePath() const noexcept { return activePath; }
 
 	bool CanBeDisplayed(RE::TESObjectCELL* a_cell, bool a_isPlayerInCombat) const
 	{
@@ -76,7 +81,24 @@ public:
 
 	void AddToHudElements()
 	{
-		Invoke("AddToHudElements");
+		if (HasMember("AddToHudElements")) {
+			Invoke("AddToHudElements");
+			return;
+		}
+
+		// Fallback for a compatible quest-list overlay whose helper function was
+		// stripped by a UI replacer: register the live object directly in HudElements.
+		auto hud = CNO::HUDDiscovery::FindHUDRoot(GetMovieView(), this);
+		if (!hud) {
+			return;
+		}
+		RE::GFxValue elements;
+		if (static_cast<RE::GFxValue&>(*hud).GetMember("HudElements", &elements) && elements.IsArray()) {
+			GFxArray hudElements{ elements, GetMovieView() };
+			if (hudElements.IsUsable() && hudElements.FindElement(*this) < 0) {
+				hudElements.PushBack(*this);
+			}
+		}
 	}
 
 	void AddQuest(const QuestItem& a_questItem)
@@ -105,38 +127,40 @@ public:
 			}
 		}
 
-		Invoke("AddQuest", a_questItem.type, a_questItem.name.c_str(), a_questItem.isInSameLocation,
-			   gfxQuestObjectives, a_questItem.ageIndex);
+		if (HasMember("AddQuest")) {
+			Invoke("AddQuest", a_questItem.type, a_questItem.name.c_str(), a_questItem.isInSameLocation,
+				gfxQuestObjectives, a_questItem.ageIndex);
+		}
 	}
 
 	void SetQuestSide(const std::string& a_sideName)
 	{
-		Invoke("SetQuestSide", a_sideName.c_str());
+		if (HasMember("SetQuestSide")) { Invoke("SetQuestSide", a_sideName.c_str()); }
 	}
 
 	void Update()
 	{
-		Invoke("Update");
+		if (HasMember("Update")) { Invoke("Update"); }
 	}
 
 	void ShowQuest()
 	{
-		Invoke("ShowQuest");
+		if (HasMember("ShowQuest")) { Invoke("ShowQuest"); }
 	}
 
 	void RemoveQuest()
 	{
-		Invoke("RemoveQuest");
+		if (HasMember("RemoveQuest")) { Invoke("RemoveQuest"); }
 	}
 
 	void ShowAllQuests()
 	{
-		Invoke("ShowAllQuests");
+		if (HasMember("ShowAllQuests")) { Invoke("ShowAllQuests"); }
 	}
 
 	void RemoveAllQuests()
 	{
-		Invoke("RemoveAllQuests");
+		if (HasMember("RemoveAllQuests")) { Invoke("RemoveAllQuests"); }
 	}
 
 	void UpdateLayout()
@@ -151,12 +175,19 @@ public:
 		RE::GFxValue stageWidthVal, stageHeightVal;
 		movieView->GetVariable(&stageWidthVal, "Stage.width");
 		movieView->GetVariable(&stageHeightVal, "Stage.height");
-		float stageW = (stageWidthVal.IsNumber() && stageWidthVal.GetNumber() > 0) ? static_cast<float>(stageWidthVal.GetNumber()) : 1280.0F;
-		float stageH = (stageHeightVal.IsNumber() && stageHeightVal.GetNumber() > 0) ? static_cast<float>(stageHeightVal.GetNumber()) : 720.0F;
+		const double rawStageW = stageWidthVal.IsNumber() ? stageWidthVal.GetNumber() : 0.0;
+		const double rawStageH = stageHeightVal.IsNumber() ? stageHeightVal.GetNumber() : 0.0;
+		float stageW = (std::isfinite(rawStageW) && rawStageW > 0.0) ? static_cast<float>(rawStageW) : 1280.0F;
+		float stageH = (std::isfinite(rawStageH) && rawStageH > 0.0) ? static_cast<float>(rawStageH) : 720.0F;
 
 		float posX0 = stageW * settings::questlist::positionX;
 		float posY0 = stageH * settings::questlist::positionY;
 		float newMaxHeight = stageH * settings::questlist::maxHeight;
+
+		if (!std::isfinite(posX0) || !std::isfinite(posY0) || !std::isfinite(newMaxHeight)) {
+			logger::warn("QuestItemList UpdateLayout produced non-finite coordinates; leaving the active HUD transform untouched");
+			return;
+		}
 
 		SetMember("positionX0", posX0);
 		SetMember("positionY0", posY0);
@@ -170,23 +201,22 @@ public:
 		float localY = posY0;
 
 		RE::GFxValue parentObj = GetMember("_parent");
-		bool foundParent = false;
-		if (parentObj.IsObject())
-		{
-			foundParent = true;
-		}
-		else if (movieView->GetVariable(&parentObj, "_level0.HUDMovieBaseInstance") && parentObj.IsObject())
-		{
-			foundParent = true;
+		bool foundParent = parentObj.IsDisplayObject();
+		if (!foundParent) {
+			if (auto hud = CNO::HUDDiscovery::FindHUDRoot(movieView, this)) {
+				parentObj = *hud;
+				foundParent = true;
+			}
 		}
 
-		if (foundParent)
+		if (foundParent && parentObj.HasMember("globalToLocal"))
 		{
 			std::array<RE::GFxValue, 1> args{ pt };
 			parentObj.Invoke("globalToLocal", nullptr, args.data(), 1);
 			RE::GFxValue xVal = pt.GetMember("x");
 			RE::GFxValue yVal = pt.GetMember("y");
-			if (xVal.IsNumber() && yVal.IsNumber())
+			if (xVal.IsNumber() && yVal.IsNumber() &&
+				std::isfinite(xVal.GetNumber()) && std::isfinite(yVal.GetNumber()))
 			{
 				localX = static_cast<float>(xVal.GetNumber());
 				localY = static_cast<float>(yVal.GetNumber());
@@ -207,10 +237,10 @@ public:
 
 private:
 
-	QuestItemList(const GFxDisplayObject& a_questItemList) :
+	QuestItemList(const GFxDisplayObject& a_questItemList, bool a_initialize) :
 		GFxDisplayObject{ a_questItemList }
 	{
-		InitializeInstance();
+		if (a_initialize) { InitializeInstance(); }
 	}
 
 	void InitializeInstance()
@@ -218,12 +248,15 @@ private:
 		if (!IsReady()) {
 			return;
 		}
-		Invoke("QuestItemList", settings::questlist::positionX, settings::questlist::positionY, settings::questlist::maxHeight);
+		if (HasMember("QuestItemList")) {
+			Invoke("QuestItemList", settings::questlist::positionX, settings::questlist::positionY, settings::questlist::maxHeight);
+		}
 		SetMember("_xscale", settings::questlist::scale);
 		SetMember("_yscale", settings::questlist::scale);
 	}
 
 	static inline QuestItemList* singleton = nullptr;
+	std::string activePath{ path };
 
 	bool hiddenByForce = false;
 };

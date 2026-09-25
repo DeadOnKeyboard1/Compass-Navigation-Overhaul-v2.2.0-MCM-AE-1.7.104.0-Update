@@ -28,7 +28,7 @@ public:
 
 	void LogMembersOf(const RE::GFxValue& a_value)
 	{
-		logger::at_level(logLevel, "{}: {}", a_value.ToString().c_str(), GFxValueTypeToString(a_value.GetType()));
+		logger::at_level(logLevel, "GFxValue type: {}", GFxValueTypeToString(a_value.GetType()));
 		if (a_value.IsObject())
 		{
 			logger::at_level(logLevel, "{}", "{");
@@ -70,7 +70,7 @@ class GFxArrayLogger
 public:
 	void LogElementsOf(const RE::GFxValue& a_value)
 	{
-		logger::at_level(logLevel, "{}: {}", a_value.ToString().c_str(), GFxValueTypeToString(a_value.GetType()));
+		logger::at_level(logLevel, "GFxValue type: {}", GFxValueTypeToString(a_value.GetType()));
 		if (a_value.IsArray())
 		{
 			logger::at_level(logLevel, "{}", "{");
@@ -78,7 +78,7 @@ public:
 			for (std::uint32_t i = 0; i < count; ++i) {
 				RE::GFxValue element;
 				if (a_value.GetElement(i, &element)) {
-					logger::at_level(logLevel, "\t[{}] {}: {}", i, element.ToString().c_str(), GFxValueTypeToString(element.GetType()));
+					logger::at_level(logLevel, "\t[{}]: {}", i, GFxValueTypeToString(element.GetType()));
 				}
 			}
 			logger::at_level(logLevel, "{}", "}");

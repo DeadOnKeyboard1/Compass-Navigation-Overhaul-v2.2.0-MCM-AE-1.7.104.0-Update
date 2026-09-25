@@ -114,7 +114,8 @@ namespace hooks
 	}
 
 	bool UpdateQuests(const RE::HUDMarkerManager* a_hudMarkerManager, RE::HUDMarker::ScaleformData* a_markerData,
-					  RE::NiPoint3* a_pos, const RE::RefHandle& a_refHandle, std::uint32_t a_markerGotoFrame)
+				  RE::NiPoint3* a_pos, const RE::RefHandle& a_refHandle, std::uint32_t a_markerGotoFrame,
+				  const void* a_questTargetContext)
 	{
 		// This hook replaces Skyrim's original AddMarker call. Never suppress the
 		// vanilla marker merely because an auxiliary CNO argument is null.
@@ -133,35 +134,62 @@ namespace hooks
 			return true;
 		}
 
+		// The fact that Skyrim reached this AddMarker call is its own tracking decision.
+		// Preserve the exact target context instead of rebuilding the association by marker
+		// reference: multiple Miscellaneous objectives can share the same interior door.
+		//
+		// Original CNO treated RBX as a small context/slot whose first qword contains the
+		// TESQuestTarget*. Some reverse-engineered layouts expose the direct target instead.
+		// Support both forms without dereferencing either candidate until pointer identity
+		// proves that it is one of the objective's known TESQuestTarget objects.
+		if (!a_questTargetContext) {
+			return true;
+		}
+
+		const auto* directTarget = static_cast<const RE::TESQuestTarget*>(a_questTargetContext);
+		RE::TESQuestTarget* slottedTarget = nullptr;
+		std::memcpy(&slottedTarget, a_questTargetContext, sizeof(slottedTarget));
+
 		auto& playerObjectives = GetPlayerObjectives(player);
-		for (int ageIndex = static_cast<int>(playerObjectives.size()) - 1; ageIndex >= 0; --ageIndex) {
-			auto* playerObjective = std::addressof(playerObjectives[ageIndex]);
-			if (playerObjective->InstanceState != RE::QUEST_OBJECTIVE_STATE::kDisplayed) {
+		const std::array<const RE::TESQuestTarget*, 2> candidates{ directTarget, slottedTarget };
+		for (std::size_t candidateIndex = 0; candidateIndex < candidates.size(); ++candidateIndex) {
+			const auto* candidate = candidates[candidateIndex];
+			if (!candidate || (candidateIndex > 0 && candidate == candidates[0])) {
 				continue;
 			}
 
-			auto* questObjective = playerObjective->Objective;
-			if (!questObjective || !questObjective->targets) {
-				continue;
-			}
-
-			auto* quest = questObjective->ownerQuest;
-			if (!quest || !quest->IsRunning()) {
-				continue;
-			}
-
-			for (std::uint32_t j = 0; j < questObjective->numTargets; ++j) {
-				auto* target = questObjective->targets[j];
-				if (!target) {
+			for (int ageIndex = static_cast<int>(playerObjectives.size()) - 1; ageIndex >= 0; --ageIndex) {
+				auto* playerObjective = std::addressof(playerObjectives[ageIndex]);
+				if (playerObjective->InstanceState != RE::QUEST_OBJECTIVE_STATE::kDisplayed) {
 					continue;
 				}
 
-				RE::ObjectRefHandle trackingRef;
-				target->GetTrackingRef(trackingRef, quest);
-				if (trackingRef && trackingRef.native_handle() == a_refHandle) {
-					CNO::HUDMarkerManager::GetSingleton()->ProcessQuestMarker(
-						quest, playerObjective, ageIndex, marker, a_markerGotoFrame, *markerIndex);
-					break;
+				auto* questObjective = playerObjective->Objective;
+				if (!questObjective || !questObjective->targets) {
+					continue;
+				}
+
+				auto* quest = questObjective->ownerQuest;
+				if (!quest || !quest->IsRunning()) {
+					continue;
+				}
+
+				for (std::uint32_t j = 0; j < questObjective->numTargets; ++j) {
+					auto* target = questObjective->targets[j];
+					if (!target || target != candidate) {
+						continue;
+					}
+
+					// Only after pointer identity proves the candidate belongs to this known
+					// objective do we call into it. If RBX ever contains neither supported form,
+					// no pointer matches and CNO simply keeps the already-created vanilla marker.
+					RE::ObjectRefHandle trackingRef;
+					target->GetTrackingRef(trackingRef, quest);
+					if (trackingRef && trackingRef.native_handle() == a_refHandle) {
+						CNO::HUDMarkerManager::GetSingleton()->ProcessQuestMarker(
+							quest, playerObjective, ageIndex, marker, a_markerGotoFrame, *markerIndex);
+					}
+					return true;
 				}
 			}
 		}

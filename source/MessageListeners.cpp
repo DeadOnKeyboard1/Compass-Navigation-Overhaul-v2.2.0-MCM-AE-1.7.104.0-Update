@@ -6,10 +6,10 @@
 #include "NND/NPCNameProvider.h"
 
 #include "Compass.h"
+#include "HUDDiscovery.h"
+#include "HUDMarkerManager.h"
 #include "QuestItemList.h"
 #include "Test.h"
-
-#include "IUI/GFxLoggers.h"
 
 #include "Hooks.h"
 
@@ -18,6 +18,76 @@
 const SKSE::LoadInterface* skse;
 
 void InfinityUIMessageListener(SKSE::MessagingInterface::Message* a_msg);
+
+namespace
+{
+	std::optional<CNO::HUDDiscovery::LocatedDisplayObject> ResolveCompass(RE::GFxMovieView* a_movie)
+	{
+		return CNO::HUDDiscovery::FindCompass(a_movie);
+	}
+
+	std::optional<CNO::HUDDiscovery::LocatedDisplayObject> ResolveQuestItemList(RE::GFxMovieView* a_movie)
+	{
+		return CNO::HUDDiscovery::FindQuestItemList(a_movie);
+	}
+
+	void LogCompatibilityReport(RE::GFxMovieView* a_movie, std::string_view a_movieUrl)
+	{
+		auto* compass = CNO::Compass::GetSingleton();
+		auto* questList = QuestItemList::GetSingleton();
+		const bool compassReady = compass && compass->IsReady();
+		const bool questListReady = questList && questList->IsReady();
+		const int compassScore = compassReady ?
+			CNO::HUDDiscovery::CompassScore(static_cast<const RE::GFxValue&>(*compass)) : 0;
+		const int questScore = questListReady ?
+			CNO::HUDDiscovery::QuestItemListScore(static_cast<const RE::GFxValue&>(*questList)) : 0;
+		const bool fullCNOApi = compassReady && compass->SupportsCNOFunctions();
+
+		bool hudRootFound = false;
+		if (compassReady) {
+			hudRootFound = CNO::HUDDiscovery::FindHUDRoot(a_movie, compass).has_value();
+		} else {
+			hudRootFound = CNO::HUDDiscovery::FindHUDRoot(a_movie).has_value();
+		}
+
+		std::string_view mode = !compassReady ? "no-compass" : (fullCNOApi ? "full" : "layout-only");
+		logger::info(
+			"CNO Compatibility Report: movie='{}', mode={}, compass='{}' score={}, fullCNOAPI={}, questList='{}' score={}, HUDRoot={}, InfinityUI=yes, CoMAPCompat={}",
+			a_movieUrl,
+			mode,
+			compassReady ? compass->GetActivePath() : std::string("<none>"),
+			compassScore,
+			fullCNOApi ? "yes" : "no",
+			questListReady ? questList->GetActivePath() : std::string("<none>"),
+			questScore,
+			hudRootFound ? "yes" : "no",
+			hooks::compat::MapMarkerFramework::pluginInfo ? "yes" : "no");
+
+		if (!compassReady) {
+			return;
+		}
+
+		RE::GFxValue holder = compass->GetMember("_parent");
+		if (!holder.IsDisplayObject()) {
+			logger::info("CNO Compatibility Report: native holder baseline unavailable (no display-object parent)");
+			return;
+		}
+
+		RE::GFxValue x, y, sx, sy;
+		const bool hasBaseline =
+			holder.GetMember("__CNO_BaseX", &x) && x.IsNumber() && std::isfinite(x.GetNumber()) &&
+			holder.GetMember("__CNO_BaseY", &y) && y.IsNumber() && std::isfinite(y.GetNumber()) &&
+			holder.GetMember("__CNO_BaseScaleX", &sx) && sx.IsNumber() && std::isfinite(sx.GetNumber()) &&
+			holder.GetMember("__CNO_BaseScaleY", &sy) && sy.IsNumber() && std::isfinite(sy.GetNumber());
+		if (hasBaseline) {
+			logger::info("CNO Compatibility Report: native holder baseline pos({:.1f},{:.1f}) scale=({:.1f}%, {:.1f}%)",
+				x.GetNumber(), y.GetNumber(), sx.GetNumber(), sy.GetNumber());
+		} else {
+			logger::info("CNO Compatibility Report: native holder baseline not stored");
+		}
+	}
+}
+
 
 void TriggerLayoutRefresh()
 {
@@ -53,14 +123,19 @@ public:
 		if (!a_event->opening && (a_event->menuName == RE::JournalMenu::MENU_NAME || a_event->menuName == "Journal Menu"))
 		{
 			logger::info("Journal menu closed - reloading settings and updating UI layout...");
-			TriggerLayoutRefresh();
 
-			// Also schedule delayed refresh via task interface on next frame (in case MCMHelper wrote INI asynchronously)
+			// MCM Helper can finish writing its INI at menu close. Prefer one next-frame
+			// refresh so we read the final file exactly once; fall back to an immediate
+			// refresh only if SKSE's task interface is unavailable.
 			if (auto task = SKSE::GetTaskInterface())
 			{
 				task->AddTask([]() {
 					TriggerLayoutRefresh();
 				});
+			}
+			else
+			{
+				TriggerLayoutRefresh();
 			}
 		}
 
@@ -95,8 +170,15 @@ void SKSEMessageListener(SKSE::MessagingInterface::Message* a_msg)
 		RegisterMenuObserver();
 		TriggerLayoutRefresh();
 	}
+	else if (a_msg->type == SKSE::MessagingInterface::kPreLoadGame)
+	{
+		// Drop raw quest/marker references before the old save is torn down.
+		CNO::HUDMarkerManager::GetSingleton()->ResetRuntimeState("pre-load game");
+	}
 	else if (a_msg->type == SKSE::MessagingInterface::kPostLoadGame || a_msg->type == SKSE::MessagingInterface::kNewGame)
 	{
+		CNO::HUDMarkerManager::GetSingleton()->ResetRuntimeState(
+			a_msg->type == SKSE::MessagingInterface::kNewGame ? "new game" : "post-load game");
 		RegisterMenuObserver();
 		TriggerLayoutRefresh();
 	}
@@ -150,16 +232,24 @@ void InfinityUIMessageListener(SKSE::MessagingInterface::Message* a_msg)
 		}
 		std::string_view movieUrl = movieDef->GetFileURL();
 
-		if (movieUrl.find("HUDMenu") == std::string::npos)
-		{
+		bool isHUDMovie = movieUrl.find("HUDMenu") != std::string::npos;
+		if (!isHUDMovie) {
+			if (auto* ui = RE::UI::GetSingleton()) {
+				if (auto hudMenu = ui->GetMenu<RE::HUDMenu>(); hudMenu && hudMenu->uiMovie.get() == message->movie) {
+					isHUDMovie = true;
+				}
+			}
+		}
+		if (!isHUDMovie) {
 			return;
 		}
-
-		GFxMemberLogger<logger::level::debug> memberLogger;
 
 		switch (a_msg->type)
 		{
 		case IUI::API::Message::Type::kStartLoadInstances:
+			// Reset marker/focus state before releasing the old HUD binding. The reset
+			// touches only C++ runtime state and does not invoke Scaleform during patching.
+			CNO::HUDMarkerManager::GetSingleton()->ResetRuntimeState("InfinityUI HUD rebuild");
 			// Release managed Scaleform values while the old HUD movie is still alive.
 			CNO::Compass::InvalidateSingleton();
 			QuestItemList::InvalidateSingleton();
@@ -169,25 +259,14 @@ void InfinityUIMessageListener(SKSE::MessagingInterface::Message* a_msg)
 			break;
 		case IUI::API::Message::Type::kPreReplaceInstance:
 			if (auto preReplaceMessage = IUI::API::TranslateAs<IUI::API::PreReplaceInstanceMessage>(a_msg);
-				preReplaceMessage && preReplaceMessage->originalInstance.IsDisplayObject())
+				preReplaceMessage && preReplaceMessage->originalInstance.IsDisplayObject() &&
+				CNO::HUDDiscovery::LooksLikeCompass(preReplaceMessage->originalInstance))
 			{
-				std::string pathToOriginal = preReplaceMessage->originalInstance.ToString().c_str();
-
-				if (pathToOriginal == CNO::Compass::path)
-				{
-					IUI::GFxDisplayObject original{ preReplaceMessage->originalInstance, message->movie };
-					if (!original.IsUsable()) {
-						logger::warn("PreReplace compass instance is not a usable display object");
-						break;
-					}
-					CNO::Compass::InitSingleton(original);
-					auto compass = CNO::Compass::GetSingleton();
-
-					logger::debug("Before replacing:");
-					memberLogger.LogMembersOf(*compass);
-					if (auto coord = compass->LocalToGlobal()) {
-						logger::debug("{} is on ({}, {})", compass->ToString().c_str(), coord->x, coord->y);
-					}
+				IUI::GFxDisplayObject original{ preReplaceMessage->originalInstance, message->movie };
+				CNO::Compass::InitSingleton(original, "<InfinityUI-pre-replace>");
+				if (auto compass = CNO::Compass::GetSingleton(); compass && compass->IsReady()) {
+					logger::debug("Before replacing runtime compass (capability score={})",
+						CNO::HUDDiscovery::CompassScore(preReplaceMessage->originalInstance));
 				}
 			}
 			break;
@@ -195,57 +274,46 @@ void InfinityUIMessageListener(SKSE::MessagingInterface::Message* a_msg)
 			if (auto postPatchMessage = IUI::API::TranslateAs<IUI::API::PostPatchInstanceMessage>(a_msg);
 				postPatchMessage && postPatchMessage->newInstance.IsDisplayObject())
 			{
-				std::string pathToNew = postPatchMessage->newInstance.ToString().c_str();
-				IUI::GFxDisplayObject newInstance{ postPatchMessage->newInstance, message->movie };
-				if (!newInstance.IsUsable()) {
-					logger::warn("InfinityUI returned an unusable display object for {}", pathToNew);
+				const int compassScore = CNO::HUDDiscovery::CompassScore(postPatchMessage->newInstance);
+				const int questScore = CNO::HUDDiscovery::QuestItemListScore(postPatchMessage->newInstance);
+				const bool isCompass = compassScore >= 70 && compassScore >= questScore;
+				const bool isQuestItemList = questScore >= 120 && questScore > compassScore;
+				if (!isCompass && !isQuestItemList) {
 					break;
 				}
 
-				if (pathToNew == CNO::Compass::path)
+				IUI::GFxDisplayObject newInstance{ postPatchMessage->newInstance, message->movie };
+				if (!newInstance.IsUsable()) {
+					logger::warn("InfinityUI returned an unusable CNO display object");
+					break;
+				}
+
+				if (isCompass)
 				{
+					CNO::Compass::InitSingleton(newInstance, "<InfinityUI-post-patch>");
 					if (auto compass = CNO::Compass::GetSingleton())
 					{
-						compass->SetupMod(newInstance);
-						compass->SetUnits(settings::display::useMetricUnits);
-						compass->UpdateLayout();
-
-						logger::debug("After replacing:");
-						memberLogger.LogMembersOf(*compass);
-						if (auto coord = compass->LocalToGlobal()) {
-							logger::debug("{} is on ({}, {})", compass->ToString().c_str(), coord->x, coord->y);
-						}
+						// Do not invoke or introspect the replacement while InfinityUI is still
+						// mutating the HUD tree. FinishLoadInstances re-resolves the final object
+						// and performs SetupMod/layout after the patch batch is complete.
+						logger::debug("Bound post-patch compass candidate (score={})", compassScore);
 
 						if (hooks::compat::MapMarkerFramework::pluginInfo) {
-							// CoMAP needs the movie definition that owns the replacement Compass
-							// symbols.  The outer HUDMenu movie definition is NOT equivalent and
-							// makes normal location/enemy/player marker assets disappear.
+							// CoMAP needs the movie definition that owns the active compass symbols.
 							if (postPatchMessage->newInstanceMovieDef) {
 								hooks::compat::MapMarkerFramework::compassMovieDef = postPatchMessage->newInstanceMovieDef;
 							} else {
-								logger::warn("CoMAP compatibility: replacement Compass movie definition was not provided; preserving fallback behaviour");
+								logger::warn("CoMAP compatibility: active compass movie definition was not provided; preserving fallback behaviour");
 							}
 						}
 					}
-					else
-					{
-						// Some InfinityUI versions may omit the pre-replace event. Bind safely here too.
-						CNO::Compass::InitSingleton(newInstance);
-						if (auto compass = CNO::Compass::GetSingleton()) {
-							compass->SetupMod(newInstance);
-							compass->UpdateLayout();
-						}
-					}
 				}
-				else if (pathToNew == QuestItemList::path)
+				else if (isQuestItemList)
 				{
-					QuestItemList::InitSingleton(newInstance);
+					QuestItemList::InitSingleton(newInstance, "<InfinityUI-post-patch>", false);
 					if (auto questItemList = QuestItemList::GetSingleton(); questItemList && questItemList->IsReady()) {
-						memberLogger.LogMembersOf(*questItemList);
-						if (auto coord = questItemList->LocalToGlobal()) {
-							logger::debug("{} is on ({}, {})", questItemList->ToString().c_str(), coord->x, coord->y);
-						}
-						questItemList->UpdateLayout();
+						// Initialization and layout are intentionally deferred until FinishLoadInstances.
+						logger::debug("Bound post-patch quest-list candidate (score={})", questScore);
 					}
 				}
 			}
@@ -254,14 +322,15 @@ void InfinityUIMessageListener(SKSE::MessagingInterface::Message* a_msg)
 			if (auto abortPatchMessage = IUI::API::TranslateAs<IUI::API::AbortPatchInstanceMessage>(a_msg);
 				abortPatchMessage && abortPatchMessage->originalValue.IsDisplayObject())
 			{
-				std::string pathToOriginal = abortPatchMessage->originalValue.ToString().c_str();
-				if (pathToOriginal == CNO::Compass::path) {
+				if (CNO::HUDDiscovery::LooksLikeCompass(abortPatchMessage->originalValue)) {
 					CNO::Compass::InvalidateSingleton();
 					hooks::compat::MapMarkerFramework::compassMovieDef = nullptr;
-					logger::error("Aborted replacement of {}", CNO::Compass::path);
-				} else if (pathToOriginal == QuestItemList::path) {
+					logger::error("Aborted replacement of a runtime compass candidate (score={})",
+						CNO::HUDDiscovery::CompassScore(abortPatchMessage->originalValue));
+				} else if (CNO::HUDDiscovery::LooksLikeQuestItemList(abortPatchMessage->originalValue)) {
 					QuestItemList::InvalidateSingleton();
-					logger::error("Aborted replacement of {}", QuestItemList::path);
+					logger::error("Aborted replacement of a runtime quest-list candidate (score={})",
+						CNO::HUDDiscovery::QuestItemListScore(abortPatchMessage->originalValue));
 				}
 			}
 			break;
@@ -270,29 +339,45 @@ void InfinityUIMessageListener(SKSE::MessagingInterface::Message* a_msg)
 				finishLoadMessage && finishLoadMessage->movie)
 			{
 				RE::GFxValue test;
-				if (finishLoadMessage->movie->GetVariable(&test, Test::path.data())) {
+				if (finishLoadMessage->movie->GetVariable(&test, Test::path.data()) && test.IsDisplayObject()) {
 					Test::InitSingleton(IUI::GFxDisplayObject{ test, finishLoadMessage->movie });
 				}
 
-				// Re-resolve final HUD objects after all replacements. This also recovers safely
-				// if a pre/post replacement notification was skipped or a patch was aborted.
-				RE::GFxValue finalCompass;
-				if (finishLoadMessage->movie->GetVariable(&finalCompass, CNO::Compass::path.data()) && finalCompass.IsDisplayObject()) {
-					IUI::GFxDisplayObject finalCompassObject{ finalCompass, finishLoadMessage->movie };
-					CNO::Compass::InitSingleton(finalCompassObject);
+				// Re-resolve final HUD objects by behaviour/signature after all replacements.
+				// This supports renamed/reparented compass holders used by UI skins.
+				if (auto finalCompass = ResolveCompass(finishLoadMessage->movie)) {
+					CNO::Compass::InitSingleton(finalCompass->object, finalCompass->path);
 					if (auto compass = CNO::Compass::GetSingleton(); compass && compass->IsReady()) {
-						// Safe recovery path if InfinityUI skipped a pre/post notification.
-						compass->SetupMod(finalCompassObject);
+						compass->SetupMod(finalCompass->object);
+						logger::info("Universal HUD detection bound compass '{}' (score={})", finalCompass->path, finalCompass->score);
 					}
+				} else {
+					CNO::Compass::InvalidateSingleton();
+					hooks::compat::MapMarkerFramework::compassMovieDef = nullptr;
+					logger::warn("Universal HUD detection could not identify a compass instance; CNO will leave this HUD untouched");
 				}
-				RE::GFxValue finalQuestList;
-				if (finishLoadMessage->movie->GetVariable(&finalQuestList, QuestItemList::path.data()) && finalQuestList.IsDisplayObject()) {
-					QuestItemList::InitSingleton(IUI::GFxDisplayObject{ finalQuestList, finishLoadMessage->movie });
+
+				if (auto finalQuestList = ResolveQuestItemList(finishLoadMessage->movie)) {
+					QuestItemList::InitSingleton(finalQuestList->object, finalQuestList->path);
+					logger::info("Universal HUD detection bound quest list '{}' (score={})", finalQuestList->path, finalQuestList->score);
+				} else {
+					QuestItemList::InvalidateSingleton();
+					logger::info("No CNO quest-list overlay detected; focused compass functionality remains active without it");
 				}
 
 			}
+			else
+			{
+				CNO::Compass::InvalidateSingleton();
+				QuestItemList::InvalidateSingleton();
+				Test::InvalidateSingleton();
+				hooks::compat::MapMarkerFramework::compassMovieDef = nullptr;
+				logger::warn("InfinityUI FinishLoadInstances message was incomplete; invalidated provisional HUD bindings");
+				break;
+			}
 			RegisterMenuObserver();
 			TriggerLayoutRefresh();
+			LogCompatibilityReport(message->movie, movieUrl);
 			logger::info("Finished loading HUD patches");
 			break;
 		case IUI::API::Message::Type::kPostInitExtensions:

@@ -6,11 +6,13 @@
 #include "RE/C/Compass.h"
 #include "RE/H/HUDMarkerManager.h"
 #include "RE/N/NiPoint3.h"
+#include "RE/T/TESQuest.h"
 
 namespace hooks
 {
 	bool UpdateQuests(const RE::HUDMarkerManager* a_hudMarkerManager, RE::HUDMarker::ScaleformData* a_markerData,
-					  RE::NiPoint3* a_pos, const RE::RefHandle& a_refHandle, std::uint32_t a_markerGotoFrame);
+				  RE::NiPoint3* a_pos, const RE::RefHandle& a_refHandle, std::uint32_t a_markerGotoFrame,
+				  const void* a_questTargetContext);
 
 	RE::TESWorldSpace* AllowedToShowMapMarker(const RE::TESObjectREFR* a_marker);
 
@@ -67,13 +69,36 @@ namespace hooks
 	static inline bool Install()
 	{
 		// `HUDMarkerManager::UpdateQuests` (call to `HUDMarkerManager::AddMarker`).
-		// Hook the call directly. Do not reinterpret internal loop registers as quest structures.
+		// Preserve the TESQuestTarget* for the exact marker Skyrim is processing. This
+		// prevents Miscellaneous objectives that share a door/location reference from
+		// being merged merely because they resolve to the same RefHandle.
 		struct UpdateQuestsHook : Hook<5>
 		{
 			static std::uintptr_t Address() { return HUDMarkerManager::UpdateQuests.address() + REL::VariantOffset{ 0x114, 0x180, 0x114 }.offset(); }
 
+			struct HookCodeGenerator : Xbyak::CodeGenerator
+			{
+				HookCodeGenerator(std::uintptr_t a_hookedAddress)
+				{
+					Xbyak::Label hookLabel;
+					Xbyak::Label retnLabel;
+
+					// This trampoline is entered by JMP, before the original CALL pushes a
+					// return address. Keep the existing fifth argument at [rsp+0x20] and
+					// place our sixth argument at [rsp+0x28]. After CALL below, Win64 sees
+					// the sixth argument at [rsp+0x30].
+					mov(ptr[rsp + 0x28], rbx);
+					call(ptr[rip + hookLabel]);
+					jmp(ptr[rip + retnLabel]);
+
+					L(hookLabel), dq(reinterpret_cast<std::uintptr_t>(&UpdateQuests));
+					L(retnLabel), dq(a_hookedAddress + 5);
+					ready();
+				}
+			};
+
 			UpdateQuestsHook(std::uintptr_t a_hookedAddress) :
-				Hook{ a_hookedAddress, reinterpret_cast<std::uintptr_t>(&UpdateQuests) }
+				Hook{ a_hookedAddress, HookCodeGenerator{ a_hookedAddress } }
 			{}
 		};
 
@@ -143,6 +168,13 @@ namespace hooks
 				reinterpret_cast<std::uintptr_t>(mbi.BaseAddress) + mbi.RegionSize < a_address + 5) {
 				return 0;
 			}
+
+			const DWORD protection = mbi.Protect & 0xFF;
+			const bool readable = protection == PAGE_READONLY || protection == PAGE_READWRITE || protection == PAGE_WRITECOPY ||
+				protection == PAGE_EXECUTE_READ || protection == PAGE_EXECUTE_READWRITE || protection == PAGE_EXECUTE_WRITECOPY;
+			if (!readable) {
+				return 0;
+			}
 			if (*reinterpret_cast<const std::uint8_t*>(a_address) != 0xE8) {
 				return 0;
 			}
@@ -177,7 +209,7 @@ namespace hooks
 													updateLocationsHook.getSize() + updateEnemiesHook.getSize() +
 													updatePlayerSetMarkerHook.getSize() };
 		
-		defaultTrampoline.write_call(updateQuestsHook);
+		defaultTrampoline.write_branch(updateQuestsHook);
 		defaultTrampoline.write_call(allowedToShowMapMarkerHook[0]);
 		defaultTrampoline.write_call(allowedToShowMapMarkerHook[1]);
 		defaultTrampoline.write_call(updateLocationsHook);

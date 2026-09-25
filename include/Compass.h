@@ -2,6 +2,7 @@
 
 #include "IUI/GFxArray.h"
 #include "IUI/GFxDisplayObject.h"
+#include "HUDDiscovery.h"
 
 #include "utils/Geometry.h"
 
@@ -34,19 +35,25 @@ namespace CNO
 
 		static constexpr inline std::string_view path = "_level0.HUDMovieBaseInstance.CompassShoutMeterHolder.Compass";
 
-		static void InitSingleton(const GFxDisplayObject& a_originalCompass)
+		static void InitSingleton(const GFxDisplayObject& a_originalCompass, std::string_view a_path = {})
 		{
 			if (!singleton)
 			{
 				static Compass singletonInstance{ a_originalCompass };
 				singleton = &singletonInstance;
+				if (!a_path.empty()) {
+					singleton->activePath = a_path;
+				}
 			}
 			else
 			{
-				// InfinityUI may rebuild the HUD during the same process. Rebind immediately
-				// at pre-replace time so no frame can keep a stale Scaleform object.
+				// InfinityUI may rebuild only the Compass child while keeping the same
+				// CompassShoutMeterHolder alive. Rebind the display object, but do not
+				// discard the holder baseline; UpdateLayout stores it on the holder itself.
 				*static_cast<GFxDisplayObject*>(singleton) = a_originalCompass;
-				baseHolderX = baseHolderY = baseHolderScaleX = baseHolderScaleY = -99999.0F;
+				if (!a_path.empty()) {
+					singleton->activePath = a_path;
+				}
 			}
 		}
 
@@ -57,86 +64,95 @@ namespace CNO
 			if (singleton) {
 				singleton->Invalidate();
 			}
-			baseHolderX = baseHolderY = baseHolderScaleX = baseHolderScaleY = -99999.0F;
 		}
 
 		[[nodiscard]] bool IsReady() const noexcept { return IsUsable(); }
+
+		[[nodiscard]] bool SupportsCNOFunctions() const
+		{
+			return IsReady() && HasMember("SetMarkers") && HasMember("SetFocusedMarkerInfo") &&
+				HasMember("UpdateFocusedMarker");
+		}
+
+		[[nodiscard]] const std::string& GetActivePath() const noexcept { return activePath; }
 
 		void SetupMod(const GFxDisplayObject& a_replaceCompass)
 		{
 			if (!a_replaceCompass.IsUsable()) {
 				return;
 			}
-			if (a_replaceCompass.HasMember("Compass"))
-			{
-				// A HUD/SWF reload can replace the holder with a different native layout.
-				// Force UpdateLayout() to capture the new baseline instead of reusing stale values.
-				baseHolderX = -99999.0F;
-				baseHolderY = -99999.0F;
-				baseHolderScaleX = -99999.0F;
-				baseHolderScaleY = -99999.0F;
-				*static_cast<GFxDisplayObject*>(this) = a_replaceCompass;
 
+			*static_cast<GFxDisplayObject*>(this) = a_replaceCompass;
+
+			if (!SupportsCNOFunctions()) {
+				logger::warn("Active compass at '{}' does not expose the CNO ActionScript API; preserving the HUD design and enabling layout-only compatibility",
+					activePath.empty() ? "<runtime-discovered>" : activePath);
+				return;
+			}
+
+			// Initialize the replacement through its own API. Do not assume a fixed
+			// HUDMovieBaseInstance/CompassShoutMeterHolder hierarchy.
+			if (HasMember("Compass")) {
 				Invoke("Compass");
+			}
 
-				// Some compatible SWFs expose SetMarkers without installing the HUD callback.
-				RE::GFxValue hud;
-				auto movie = GetMovieView();
-				if (HasMember("SetMarkers") && movie &&
-					movie->GetVariable(&hud, "_level0.HUDMovieBaseInstance") && hud.IsObject() &&
-					hud.SetMember("SetCompassMarkers", GetMember("SetMarkers")))
-				{
-					logger::info("Installed CNO compass marker renderer (unknown-location symbols enabled)");
-				}
-				else
-				{
-					logger::error("Could not install CNO compass marker renderer; check the active Compass.swf");
-				}
+			auto movie = GetMovieView();
+			auto hud = HUDDiscovery::FindHUDRoot(movie, this);
+			if (hud && hud->IsUsable()) {
+				hud->SetMember("__CNO_Compass", *this);
+			}
+			if (hud && hud->IsUsable() && hud->SetMember("SetCompassMarkers", GetMember("SetMarkers"))) {
+				logger::info("Installed CNO compass marker renderer on the runtime-discovered HUD root");
+			} else {
+				logger::warn("Could not bind CNO SetMarkers to the active HUD root; native marker rendering will be preserved");
 			}
 		}
 
 		void SetUnits(bool a_useMetric)
 		{
-			Invoke("SetUnits", a_useMetric);
+			if (HasMember("SetUnits")) { Invoke("SetUnits", a_useMetric); }
 		}
 
 		void SetMarkers()
 		{
-			Invoke("SetMarkers");
+			if (HasMember("SetMarkers")) { Invoke("SetMarkers"); }
 		}
 
 		void SetFocusedMarkerInfo(const std::string_view& a_targetText, float a_distance,
 								  float a_heightDifference, std::uint32_t a_markerIndex)
 		{
 			// SetMarkers recreates clips; compatible SWFs may cache the focused clip.
-			RE::GFxValue markers, marker, clip;
+			RE::GFxValue marker, clip;
 			auto focused = GetMember("FocusedMarkerInstance");
 			auto movie = GetMovieView();
-			if (focused.IsObject() && focused.HasMember("Movie") && movie &&
-				movie->GetVariable(&markers, "_level0.HUDMovieBaseInstance.CompassMarkerList") &&
-				markers.IsArray() && a_markerIndex < markers.GetArraySize() &&
-				markers.GetElement(a_markerIndex, &marker) && marker.IsObject() &&
-				marker.GetMember("movie", &clip))
+			auto hud = HUDDiscovery::FindHUDRoot(movie, this);
+			RE::GFxValue markers;
+			if (hud && focused.IsObject() && focused.HasMember("Movie") &&
+				static_cast<RE::GFxValue&>(*hud).GetMember("CompassMarkerList", &markers) && markers.IsArray() &&
+				a_markerIndex < markers.GetArraySize() && markers.GetElement(a_markerIndex, &marker) &&
+				marker.IsObject() && marker.GetMember("movie", &clip))
 			{
 				focused.SetMember("Movie", clip);
 			}
-			Invoke("SetFocusedMarkerInfo", a_targetText.data(), a_distance, a_heightDifference,
-										   a_markerIndex);
+			if (HasMember("SetFocusedMarkerInfo")) {
+				const std::string targetText{ a_targetText };
+				Invoke("SetFocusedMarkerInfo", targetText.c_str(), a_distance, a_heightDifference, a_markerIndex);
+			}
 		}
 
 		void FocusMarker(std::uint32_t a_markerIndex)
 		{
-			Invoke("FocusMarker", a_markerIndex);
+			if (HasMember("FocusMarker")) { Invoke("FocusMarker", a_markerIndex); }
 		}
 
 		void UnfocusMarker()
 		{
-			Invoke("UnfocusMarker");
+			if (HasMember("UnfocusMarker")) { Invoke("UnfocusMarker"); }
 		}
 
 		void UpdateFocusedMarker()
 		{
-			Invoke("UpdateFocusedMarker");
+			if (HasMember("UpdateFocusedMarker")) { Invoke("UpdateFocusedMarker"); }
 		}
 
 		void PostProcessMarkers(const std::unordered_map<std::uint32_t, bool>& a_unknownLocations, std::uint32_t a_markersCount)
@@ -154,7 +170,9 @@ namespace CNO
 				gfxIsUnknownLocations.PushBack(a_unknownLocations.contains(i));
 			}
 
-			Invoke("PostProcessMarkers", gfxIsUnknownLocations);
+			if (HasMember("PostProcessMarkers")) {
+				Invoke("PostProcessMarkers", gfxIsUnknownLocations);
+			}
 		}
 
 		void UpdateLayout()
@@ -165,41 +183,80 @@ namespace CNO
 				return;
 			}
 
-			RE::GFxValue holder;
-			bool foundHolder = false;
-			if (movieView->GetVariable(&holder, "_level0.HUDMovieBaseInstance.CompassShoutMeterHolder") && holder.IsObject())
-			{
-				foundHolder = true;
-			}
-			else
-			{
-				holder = GetMember("_parent");
-				if (holder.IsObject())
-				{
-					foundHolder = true;
-				}
-			}
+			// The immediate parent is the authoritative layout holder for the active
+			// compass skin. This deliberately avoids assuming the vanilla
+			// CompassShoutMeterHolder name/path.
+			RE::GFxValue holder = GetMember("_parent");
+			const bool foundHolder = holder.IsDisplayObject();
 
 			if (foundHolder)
 			{
-				if (baseHolderX < -99990.0F)
-				{
-					RE::GFxValue xVal, yVal;
-					holder.GetMember("_x", &xVal);
-					holder.GetMember("_y", &yVal);
-					baseHolderX = xVal.IsNumber() ? static_cast<float>(xVal.GetNumber()) : 0.0F;
-					baseHolderY = yVal.IsNumber() ? static_cast<float>(yVal.GetNumber()) : 0.0F;
-					logger::info("Captured base CompassHolder position: ({:.1f}, {:.1f})", baseHolderX, baseHolderY);
+				if (auto hud = HUDDiscovery::FindHUDRoot(movieView, this); hud && hud->IsUsable()) {
+					hud->SetMember("__CNO_CompassHolder", holder);
+				}
+				// Store the unmodified holder transform on the ActionScript object itself.
+				// Fast travel can replace only the Compass child while preserving this holder.
+				// Reading the current holder transform again in that case would capture CNO's
+				// already-applied offset/scale and apply the MCM values a second time.
+				constexpr std::string_view kBaseX = "__CNO_BaseX";
+				constexpr std::string_view kBaseY = "__CNO_BaseY";
+				constexpr std::string_view kBaseScaleX = "__CNO_BaseScaleX";
+				constexpr std::string_view kBaseScaleY = "__CNO_BaseScaleY";
+
+				RE::GFxValue baseXVal, baseYVal, baseScaleXVal, baseScaleYVal;
+				bool hasStoredBaseline =
+					holder.GetMember(kBaseX.data(), &baseXVal) && baseXVal.IsNumber() &&
+					holder.GetMember(kBaseY.data(), &baseYVal) && baseYVal.IsNumber() &&
+					holder.GetMember(kBaseScaleX.data(), &baseScaleXVal) && baseScaleXVal.IsNumber() &&
+					holder.GetMember(kBaseScaleY.data(), &baseScaleYVal) && baseScaleYVal.IsNumber();
+
+				if (hasStoredBaseline) {
+					const double rawBaseX = baseXVal.GetNumber();
+					const double rawBaseY = baseYVal.GetNumber();
+					const double rawBaseScaleX = baseScaleXVal.GetNumber();
+					const double rawBaseScaleY = baseScaleYVal.GetNumber();
+					hasStoredBaseline = std::isfinite(rawBaseX) && std::isfinite(rawBaseY) &&
+						std::isfinite(rawBaseScaleX) && rawBaseScaleX > 0.0 &&
+						std::isfinite(rawBaseScaleY) && rawBaseScaleY > 0.0;
 				}
 
-				if (baseHolderScaleX < -99990.0F)
+				float baseHolderX = 0.0F;
+				float baseHolderY = 0.0F;
+				float baseHolderScaleX = 100.0F;
+				float baseHolderScaleY = 100.0F;
+
+				if (hasStoredBaseline)
 				{
-					RE::GFxValue sxVal, syVal;
+					baseHolderX = static_cast<float>(baseXVal.GetNumber());
+					baseHolderY = static_cast<float>(baseYVal.GetNumber());
+					baseHolderScaleX = static_cast<float>(baseScaleXVal.GetNumber());
+					baseHolderScaleY = static_cast<float>(baseScaleYVal.GetNumber());
+				}
+				else
+				{
+					RE::GFxValue xVal, yVal, sxVal, syVal;
+					holder.GetMember("_x", &xVal);
+					holder.GetMember("_y", &yVal);
 					holder.GetMember("_xscale", &sxVal);
 					holder.GetMember("_yscale", &syVal);
-					baseHolderScaleX = (sxVal.IsNumber() && sxVal.GetNumber() > 0) ? static_cast<float>(sxVal.GetNumber()) : 100.0F;
-					baseHolderScaleY = (syVal.IsNumber() && syVal.GetNumber() > 0) ? static_cast<float>(syVal.GetNumber()) : 100.0F;
-					logger::info("Captured base CompassHolder scale: ({:.1f}%, {:.1f}%)", baseHolderScaleX, baseHolderScaleY);
+
+					const double rawX = xVal.IsNumber() ? xVal.GetNumber() : 0.0;
+					const double rawY = yVal.IsNumber() ? yVal.GetNumber() : 0.0;
+					const double rawScaleX = sxVal.IsNumber() ? sxVal.GetNumber() : 100.0;
+					const double rawScaleY = syVal.IsNumber() ? syVal.GetNumber() : 100.0;
+
+					baseHolderX = std::isfinite(rawX) ? static_cast<float>(rawX) : 0.0F;
+					baseHolderY = std::isfinite(rawY) ? static_cast<float>(rawY) : 0.0F;
+					baseHolderScaleX = (std::isfinite(rawScaleX) && rawScaleX > 0.0) ? static_cast<float>(rawScaleX) : 100.0F;
+					baseHolderScaleY = (std::isfinite(rawScaleY) && rawScaleY > 0.0) ? static_cast<float>(rawScaleY) : 100.0F;
+
+					holder.SetMember(kBaseX.data(), baseHolderX);
+					holder.SetMember(kBaseY.data(), baseHolderY);
+					holder.SetMember(kBaseScaleX.data(), baseHolderScaleX);
+					holder.SetMember(kBaseScaleY.data(), baseHolderScaleY);
+
+					logger::info("Captured native CompassHolder baseline: pos({:.1f},{:.1f}) scale=({:.1f}%, {:.1f}%)",
+						baseHolderX, baseHolderY, baseHolderScaleX, baseHolderScaleY);
 				}
 
 				const float scaleMultiplier = std::max(settings::compass::scale, 1.0F) / 100.0F;
@@ -207,6 +264,11 @@ namespace CNO
 				const float newY = baseHolderY + settings::compass::offsetY;
 				const float newScaleX = baseHolderScaleX * scaleMultiplier;
 				const float newScaleY = baseHolderScaleY * scaleMultiplier;
+
+				if (!std::isfinite(newX) || !std::isfinite(newY) || !std::isfinite(newScaleX) || !std::isfinite(newScaleY)) {
+					logger::warn("Compass UpdateLayout produced a non-finite transform; leaving the active HUD transform untouched");
+					return;
+				}
 
 				// Always write the calculated values. This is required to restore the captured
 				// native UI layout after the user resets the MCM values to 0/0/100.
@@ -220,7 +282,7 @@ namespace CNO
 			}
 			else
 			{
-				logger::warn("Compass UpdateLayout: CompassShoutMeterHolder not found");
+				logger::warn("Compass UpdateLayout: runtime compass parent/holder not found; leaving the active HUD transform untouched");
 			}
 
 			SetUnits(settings::display::useMetricUnits);
@@ -231,9 +293,6 @@ namespace CNO
 		{}
 
 		static inline Compass* singleton = nullptr;
-		static inline float baseHolderX = -99999.0F;
-		static inline float baseHolderY = -99999.0F;
-		static inline float baseHolderScaleX = -99999.0F;
-		static inline float baseHolderScaleY = -99999.0F;
+		std::string activePath{ path };
 	};
 }
